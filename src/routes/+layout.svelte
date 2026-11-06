@@ -12,12 +12,21 @@
 
 	let { children } = $props();
 
-	const TABS = [
+	import { nav } from '$lib/stores/nav.svelte';
+
+	// Every screen, behind the menu button in each header: the calculator
+	// keeps the whole screen.
+	const MENU = [
 		{ href: '/', label: 'Calculator', icon: 'calc' },
 		{ href: '/convert', label: 'Convert', icon: 'convert' },
-		{ href: '/takeoff', label: 'Takeoff', icon: 'takeoff' }
+		{ section: 'Takeoff' },
+		{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
+		{ href: '/takeoff/grout', label: 'Block fill grout', icon: 'brick' },
+		{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' },
+		{ section: '' },
+		{ href: '/about', label: 'About and help', icon: 'info' }
 	];
-	const active = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
+	const active = (href: string) => page.url.pathname === href;
 
 	let disclaimer = $state(!prefs.disclaimerSeen);
 	$effect(() => {
@@ -33,15 +42,22 @@
 
 <div class="app">
 	<main>{@render children()}</main>
-	<nav class="tabbar" aria-label="Sections">
-		{#each TABS as t (t.href)}
-			<a href={t.href} class:on={active(t.href)} aria-current={active(t.href) ? 'page' : undefined}>
-				<Icon name={t.icon} size={24} />
-				<span>{t.label}</span>
-			</a>
+</div>
+
+<Sheet bind:open={nav.open} title="">
+	<nav class="menu" aria-label="Screens">
+		{#each MENU as m, i (i)}
+			{#if 'section' in m}
+				{#if m.section}<div class="section-title">{m.section}</div>{:else}<div class="gap"></div>{/if}
+			{:else}
+				<a href={m.href} class:on={active(m.href ?? '')} aria-current={active(m.href ?? '') ? 'page' : undefined} onclick={() => (nav.open = false)}>
+					<span class="ico"><Icon name={m.icon ?? ''} size={22} /></span>
+					<span>{m.label}</span>
+				</a>
+			{/if}
 		{/each}
 	</nav>
-</div>
+</Sheet>
 
 <ValueEditor />
 
@@ -64,46 +80,45 @@
 	main {
 		min-height: 100dvh;
 	}
-	.tabbar {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 20;
-		display: flex;
-		justify-content: space-around;
-		height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-		padding-bottom: env(safe-area-inset-bottom);
-		background: color-mix(in srgb, var(--surface) 92%, transparent);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
-		border-top: 1px solid var(--border);
-	}
-	.tabbar a {
-		flex: 1;
+	.menu {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		justify-content: center;
 		gap: 2px;
-		color: var(--faint);
-		text-decoration: none;
-		font-size: 0.7rem;
-		font-weight: 600;
+		padding-bottom: 4px;
 	}
-	.tabbar a.on {
+	.menu a {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 10px 8px;
+		border-radius: 12px;
+		color: var(--text);
+		text-decoration: none;
+		font-weight: 600;
+		font-size: 1.05rem;
+	}
+	.menu a:active {
+		background: var(--surface-2);
+	}
+	.menu a.on {
+		background: var(--primary-soft);
 		color: var(--primary-text);
 	}
-	/* On its side the tab bar gets slim: icon and label in one line. */
-	@media (orientation: landscape) and (max-height: 540px) {
-		:global(:root) {
-			--tabbar-h: 40px;
-		}
-		.tabbar a {
-			flex-direction: row;
-			gap: 6px;
-			font-size: 0.8rem;
-		}
+	.menu .ico {
+		width: 40px;
+		height: 40px;
+		border-radius: 12px;
+		display: grid;
+		place-items: center;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		color: var(--primary-text);
+	}
+	.menu .section-title {
+		margin: 14px 8px 4px;
+	}
+	.menu .gap {
+		height: 10px;
 	}
 	.welcome {
 		display: flex;

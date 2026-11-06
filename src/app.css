@@ -44,7 +44,8 @@
 	--radius-sm: 10px;
 	--radius: 16px;
 	--radius-lg: 24px;
-	--tabbar-h: 56px;
+	/* No tab bar: screens are in the menu. Kept for the paddings. */
+	--tabbar-h: 0px;
 	--font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
 	--font-num: ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, sans-serif;
 	color-scheme: light;

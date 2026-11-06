@@ -7,6 +7,7 @@
 	import Sheet from '$lib/components/Sheet.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Logo from '$lib/components/Logo.svelte';
+	import MenuButton from '$lib/components/MenuButton.svelte';
 
 	const s = $derived(calc.s);
 	const den = $derived(prefs.precision);
@@ -111,7 +112,7 @@
 			<span class="num">{frac(1, den)}″</span>
 		</button>
 		<button class="icon-btn" onclick={() => (tapeOpen = true)} aria-label="Tape"><Icon name="tape" /></button>
-		<a class="icon-btn" href="/about" aria-label="About"><Icon name="info" /></a>
+		<MenuButton />
 	</header>
 
 	<section class="display" aria-live="polite">
@@ -277,8 +278,9 @@
 		flex: 1;
 	}
 	.display {
+		/* Takes what the keys leave; never squeezed below a readable answer. */
 		flex: 1 1 auto;
-		min-height: 170px;
+		min-height: 104px;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
@@ -423,8 +425,10 @@
 		color: var(--primary-ink);
 	}
 	.keys {
-		flex: 0 0 auto;
-		height: min(520px, 62dvh);
+		/* Up to 520px, shrinking on shorter screens (notch, home bar and tab
+		   bar all come out of the height) instead of running under the tabs. */
+		flex: 0 1 520px;
+		min-height: 300px;
 	}
 	.left {
 		display: contents;
@@ -456,7 +460,7 @@
 		margin-top: 4px;
 	}
 	.landscape .keys {
-		height: auto;
+		flex: 1 1 auto;
 		min-height: 0;
 	}
 	.mini-tape {

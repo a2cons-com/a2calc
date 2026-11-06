@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHead from '$lib/components/ToolHead.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	const TOOLS = [
 		{ href: '/takeoff/concrete', icon: 'slab', title: 'Concrete', text: 'Slabs, footings, walls, beams and columns, with waste and pump loss, rounded to what you order.' },
@@ -10,7 +11,7 @@
 <svelte:head><title>Takeoff · A2 Calc</title></svelte:head>
 
 <div class="page">
-	<div class="page-head"><h1>Takeoff</h1></div>
+	<ToolHead title="Takeoff" />
 	<div class="list">
 		{#each TOOLS as t (t.href)}
 			<a class="tool card" href={t.href}>

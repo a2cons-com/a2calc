@@ -1,11 +1,14 @@
 <script lang="ts">
+	// Header of a secondary screen: back to the calculator, the title, the menu.
 	import Icon from './Icon.svelte';
-	let { title }: { title: string } = $props();
+	import MenuButton from './MenuButton.svelte';
+	let { title, back = '/' }: { title: string; back?: string } = $props();
 </script>
 
 <div class="page-head">
-	<a class="icon-btn back" href="/takeoff" aria-label="Back to takeoff"><Icon name="back" /></a>
+	<a class="icon-btn back" href={back} aria-label="Back"><Icon name="back" /></a>
 	<h1>{title}</h1>
+	<MenuButton />
 </div>
 
 <style>

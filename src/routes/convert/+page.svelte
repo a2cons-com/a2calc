@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHead from '$lib/components/ToolHead.svelte';
 	import { goto } from '$app/navigation';
 	import * as C from '$lib/calc/calculator';
 	import { formatFtIn, formatNumber, fromUnit, toUnit, UNITS, UNITS_BY_DIM, type Quantity, type UnitId } from '$lib/calc/units';
@@ -48,7 +49,7 @@
 <svelte:head><title>Convert · A2 Calc</title></svelte:head>
 
 <div class="page">
-	<div class="page-head"><h1>Convert</h1></div>
+	<ToolHead title="Convert" />
 
 	<div class="seg">
 		<button class:on={st.mode === 'length'} onclick={() => (st.mode = 'length')}>Length</button>

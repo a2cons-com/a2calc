@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Logo from '$lib/components/Logo.svelte';
 	import AppMark from '$lib/components/AppMark.svelte';
-	import Icon from '$lib/components/Icon.svelte';
+	import ToolHead from '$lib/components/ToolHead.svelte';
 	import { frac } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
 	const version = __APP_VERSION__;
@@ -10,10 +10,7 @@
 <svelte:head><title>About · A2 Calc</title></svelte:head>
 
 <div class="page">
-	<div class="page-head">
-		<a class="icon-btn back" href="/" aria-label="Back"><Icon name="back" /></a>
-		<h1>About</h1>
-	</div>
+	<ToolHead title="About" />
 
 	<div class="brand card">
 		<AppMark size={52} />
@@ -61,10 +58,6 @@
 </div>
 
 <style>
-	.back {
-		margin-left: -10px;
-		color: var(--primary-text);
-	}
 	.brand {
 		display: flex;
 		align-items: center;

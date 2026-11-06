@@ -16,7 +16,8 @@
 		slab: 'M3 14l9 5 9-5-9-5-9 5Zm0 0v2l9 5 9-5v-2',
 		brick: 'M3 6h18v12H3zM3 12h18M9 6v6M15 12v6',
 		studs: 'M4 4h16M4 20h16M6 4v16M10 4v16M14 4v16M18 4v16',
-		copy: 'M9 9h10v10H9zM5 15V5h10'
+		copy: 'M9 9h10v10H9zM5 15V5h10',
+		menu: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z'
 	};
 </script>
 
