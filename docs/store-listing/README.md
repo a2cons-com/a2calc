@@ -9,7 +9,7 @@ Everything the App Store and Google Play listings need, in one place.
 | `play/phone`, `play/tablet7`, `play/tablet10`, `play/feature-graphic.png`, `play/icon-512.png` | Google Play graphics |
 | `video/a2calc-promo.mp4` | 30 s vertical promo (1080x1920) for social media and the website |
 | `video/a2calc-promo-trucks.mp4` | The second, funnier promo ("One truck. The right truck."), 34 s, 1080x1920 |
-| `video/a2calc-app-preview.mp4` | The same cut at 886x1920, within Apple's app preview specs (not uploaded) |
+| `video/a2calc-app-preview.mp4` | The first promo at 886x1920, within Apple's app preview specs (not uploaded) |
 
 Regenerate the screenshots with `scripts/store/` (see `shots.cjs`), the
 video with `scripts/promo/`. Push them with:
