@@ -6,7 +6,7 @@
 	import Keypad from '$lib/components/Keypad.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import Logo from '$lib/components/Logo.svelte';
+	import AppMark from '$lib/components/AppMark.svelte';
 
 	const s = $derived(calc.s);
 	const den = $derived(prefs.precision);
@@ -100,8 +100,8 @@
 <div class="screen" class:landscape>
 	<div class="left">
 	<header>
-		<Logo size={22} />
-		<span class="title">Calc</span>
+		<AppMark size={26} />
+		<span class="title">A2 Calc</span>
 		<span class="spacer"></span>
 		{#if landscape}
 			<button class="pill" disabled={!unitEnabled} onclick={() => (unitOpen = true)}>Unit</button>

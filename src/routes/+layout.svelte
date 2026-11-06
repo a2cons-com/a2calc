@@ -4,7 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ValueEditor from '$lib/components/ValueEditor.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
-	import Logo from '$lib/components/Logo.svelte';
+	import AppMark from '$lib/components/AppMark.svelte';
 	import { prefs } from '$lib/stores/app.svelte';
 	import { isNative } from '$lib/native';
 	import { onMount } from 'svelte';
@@ -46,7 +46,7 @@
 
 <Sheet bind:open={disclaimer} title="">
 	<div class="welcome">
-		<Logo size={44} />
+		<AppMark size={64} />
 		<h2>Welcome to A2 Calc</h2>
 		<p>Feet, inches and fractions; areas and volumes; quick concrete, block grout and stud wall takeoffs. Free, with no ads and no account.</p>
 		<p class="fine">

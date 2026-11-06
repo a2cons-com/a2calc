@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- A2 Calc app icon: four keys, feet, inches, 9 3/4 inches, equals -->
+  <rect width="1024" height="1024" fill="#f4f7f5"/>
+  <g fill="#dfeee5"><rect x="160" y="160" width="330" height="330" rx="78"/><rect x="534" y="160" width="330" height="330" rx="78"/><rect x="160" y="534" width="330" height="330" rx="78"/></g>
+  <rect x="534" y="534" width="330" height="330" rx="78" fill="#006839"/>
+  <!-- ′ feet, ″ inches -->
+  <text x="325" y="480" font-size="300" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">′</text>
+  <text x="699" y="480" font-size="300" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">″</text>
+  <!-- 9 3/4″, the fraction stacked -->
+  <text x="244" y="772" font-size="230" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">9</text>
+  <text x="360" y="672" font-size="112" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">3</text>
+  <line x1="326" y1="700" x2="394" y2="700" stroke="#006839" stroke-width="15" stroke-linecap="round"/>
+  <text x="360" y="806" font-size="112" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">4</text>
+  <text x="430" y="700" font-size="120" font-family="SF Pro Rounded, ui-rounded, -apple-system, Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#006839">″</text>
+  <!-- = -->
+  <g stroke="#ffffff" stroke-width="40" stroke-linecap="round"><line x1="629" y1="660" x2="769" y2="660"/><line x1="629" y1="738" x2="769" y2="738"/></g>
+</svg>

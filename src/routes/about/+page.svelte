@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Logo from '$lib/components/Logo.svelte';
+	import AppMark from '$lib/components/AppMark.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { frac } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
@@ -15,7 +16,7 @@
 	</div>
 
 	<div class="brand card">
-		<Logo size={40} />
+		<AppMark size={52} />
 		<div>
 			<div class="name">A2 Calc</div>
 			<div class="fine">Version {version} · free, no ads, no account</div>
@@ -56,7 +57,7 @@
 		rules are common trade practice. A2 Calc is not affiliated with or endorsed by any of the organizations named.
 	</div>
 
-	<p class="fine made">Made by <a href="https://a2cons.com" target="_blank" rel="noopener">A2 Construction</a></p>
+	<p class="fine made"><Logo size={20} /><span>Made by <a href="https://a2cons.com" target="_blank" rel="noopener">A2 Construction</a></span></p>
 </div>
 
 <style>
@@ -105,7 +106,10 @@
 		accent-color: var(--primary);
 	}
 	.made {
-		text-align: center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 		margin: 18px 0;
 	}
 </style>
