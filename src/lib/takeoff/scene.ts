@@ -7,7 +7,7 @@
 // runs down the screen), y up.
 
 import type { Opening, Role, RunFraming } from './framing';
-import { COURSE_IN, groutedCells, UNIT_IN } from './grout';
+import { COURSE_IN, UNIT_IN, wallsGrout } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
 
@@ -91,32 +91,7 @@ function cut(a: number, b: number, holes: [number, number][]): [number, number][
 	return out;
 }
 
-/** Where grout goes along one wall: cell centers (inches from its start). */
-export function wallCells(w: PlanWall, spacingIn: number): number[] {
-	const L = w.length;
-	const xs = new Set<number>();
-	groutedCells(L, spacingIn).forEach((g, i) => g && xs.add(Math.min(L - COURSE_IN / 2, i * COURSE_IN + COURSE_IN / 2)));
-	if (spacingIn && spacingIn > COURSE_IN)
-		for (const o of w.run.openings) {
-			const a = Math.max(0, Math.min(L - o.width, o.offset ?? (L - o.width) / 2));
-			// The cell each side of a door or window (jambs).
-			xs.add(Math.max(COURSE_IN / 2, a - COURSE_IN / 2));
-			xs.add(Math.min(L - COURSE_IN / 2, a + o.width + COURSE_IN / 2));
-		}
-	return [...xs].sort((p, q) => p - q);
-}
-
-/** Openings on a wall as [left, right, bottom, top]. */
-export function wallHoles(w: PlanWall, height: number): [number, number, number, number][] {
-	const L = w.length;
-	return w.run.openings.map((o) => {
-		const width = Math.max(0, Math.min(o.width, L));
-		const a = Math.max(0, Math.min(L - width, o.offset ?? (L - width) / 2));
-		return [a, a + width, bottom(o), Math.min(height, bottom(o) + Math.max(0, o.height))];
-	});
-}
-
-export function blockScene(plan: Plan, height: number, spacingIn: number, selected: number): Scene {
+export function blockScene(plan: Plan, height: number, spacingIn: number, cellsPerCorner: number, closed: boolean, selected: number): Scene {
 	const solids: Solid[] = [];
 	const t = plan.depth;
 	const joint = 0.375;
@@ -125,11 +100,14 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, select
 		block: { color: '--cmu', opacity: 0.5 },
 		'block*': { color: '--cmu', opacity: 0.5, tint: SEL },
 		grout: { color: '--grout' },
+		lintel: { color: '--grout', tint: 0.15 },
 		glass: { color: '--opening-edge', opacity: 0.35 }
 	};
-	for (const w of plan.walls) {
+	const grout = wallsGrout(plan.walls.map((w) => w.run), closed, height, spacingIn, cellsPerCorner);
+	plan.walls.forEach((w, wi) => {
 		const on = w.run.id === selected && plan.walls.length > 1;
-		const holes = wallHoles(w, height);
+		const g = grout[wi];
+		const holes = g.holes;
 		for (let k = 0; k < courses; k++) {
 			const y0 = k * COURSE_IN;
 			const y1 = y0 + COURSE_IN;
@@ -138,13 +116,10 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, select
 				for (const [a, b] of cut(Math.max(0, x), Math.min(w.length, x + UNIT_IN), inCourse))
 					if (b - a > joint * 2) solids.push(onWall(w, a, b - a - joint, y0, COURSE_IN - joint, t / 2, t, on ? 'block*' : 'block'));
 		}
-		const top = courses * COURSE_IN;
-		for (const x of wallCells(w, spacingIn)) {
-			const over = holes.filter(([a, b]) => x > a && x < b).map(([, , b, tp]) => [b, tp] as [number, number]);
-			for (const [y0, y1] of cut(0, top, over)) solids.push(onWall(w, x - COURSE_IN * 0.28, COURSE_IN * 0.56, y0, y1 - y0 - joint, t / 2, t * 0.6, 'grout'));
-		}
+		for (const c of g.columns) solids.push(onWall(w, c.x - COURSE_IN * 0.28, COURSE_IN * 0.56, c.y0, c.y1 - c.y0 - joint, t / 2, t * 0.6, 'grout'));
+		for (const l of g.lintels) solids.push(onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0 - joint, t / 2, t * 0.75, 'lintel'));
 		for (const [a, b, y0, y1] of holes) if (y0 > 0) solids.push(onWall(w, a, b - a, y0, y1 - y0, t / 2, 0.5, 'glass'));
-	}
+	});
 	return { solids, mats };
 }
 

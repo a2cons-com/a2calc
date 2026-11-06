@@ -1,11 +1,11 @@
 <script lang="ts">
 	// One block wall in elevation: courses in running bond around its doors
-	// and windows, grouted cells shaded, the length under it. Doors and
-	// windows can be dragged along it (OpeningHandles).
+	// and windows, grouted cells and lintels shaded (from wallGrout, the
+	// same cells the volume counts), the length under it. Doors and windows
+	// can be dragged along it (OpeningHandles).
 	import { formatFtIn } from '$lib/calc/units';
-	import { COURSE_IN, UNIT_IN } from '$lib/takeoff/grout';
+	import { COURSE_IN, UNIT_IN, type WallGrout } from '$lib/takeoff/grout';
 	import type { PlanWall } from '$lib/takeoff/plan';
-	import { wallCells, wallHoles } from '$lib/takeoff/scene';
 	import { prefs } from '$lib/stores/app.svelte';
 	import OpeningHandles from './OpeningHandles.svelte';
 
@@ -13,12 +13,14 @@
 		wall,
 		height,
 		spacingIn,
+		grout,
 		onmove,
 		range
 	}: {
 		wall: PlanWall;
 		height: number;
 		spacingIn: number;
+		grout: WallGrout;
 		onmove?: (id: number, offset: number) => void;
 		range?: (id: number) => [number, number];
 	} = $props();
@@ -30,7 +32,7 @@
 	const pad = $derived(s * 0.03);
 	const fs = $derived(Math.max(5, s * 0.038));
 	const sw = $derived(s / 600);
-	const holes = $derived(wallHoles(wall, height));
+	const holes = $derived(grout.holes);
 	const solid = $derived(!spacingIn || spacingIn <= COURSE_IN);
 	const y = (yy: number, h: number) => H - yy - h;
 
@@ -50,15 +52,6 @@
 			return out;
 		})
 	);
-	/** Grout columns: [x center, bottom, top], split around openings. */
-	const grout = $derived(
-		wallCells(wall, spacingIn).flatMap((x) => {
-			let bands: [number, number][] = [[0, H]];
-			for (const [a, b, hb, ht] of holes)
-				if (x > a && x < b) bands = bands.flatMap(([p, q]) => ([[p, Math.min(q, hb)], [Math.max(p, ht), q]] as [number, number][]).filter(([u, v]) => v - u > 0.5));
-			return bands.map(([p, q]) => [x, p, q] as const);
-		})
-	);
 	const handles = $derived(
 		wall.run.openings.map((o, i) => ({ id: o.id, kind: o.kind, a: holes[i][0], b: holes[i][1], bottom: holes[i][2], head: holes[i][3] }))
 	);
@@ -75,8 +68,12 @@
 				<rect x={a} y={y(k * COURSE_IN, COURSE_IN)} width={b - a} height={COURSE_IN} fill="var(--cmu)" stroke="var(--cmu-edge)" stroke-width={sw} />
 			{/each}
 		{/each}
-		{#each grout as [x, p, q], i (i)}
-			<rect x={x - COURSE_IN * 0.28} y={y(p, q - p)} width={COURSE_IN * 0.56} height={q - p} fill="var(--grout)" opacity={solid ? 0.55 : 0.85} rx={sw * 2} />
+		{#each grout.columns as c, i (i)}
+			<rect x={c.x - COURSE_IN * 0.28} y={y(c.y0, c.y1 - c.y0)} width={COURSE_IN * 0.56} height={c.y1 - c.y0} fill="var(--grout)" opacity={solid ? 0.55 : 0.85} rx={sw * 2} />
+		{/each}
+		{#each grout.lintels as l, i (i)}
+			<rect x={l.a} y={y(l.y0, l.y1 - l.y0)} width={l.b - l.a} height={l.y1 - l.y0} fill="var(--grout)" opacity="0.75" stroke="var(--primary)" stroke-width={sw * 1.5} />
+			<text x={(l.a + l.b) / 2} y={y(l.y0, (l.y1 - l.y0) / 2)} font-size={Math.min(fs * 0.8, (l.y1 - l.y0) * 0.7)} class="lintel" text-anchor="middle" dominant-baseline="central">Lintel</text>
 		{/each}
 		<OpeningHandles {handles} floor={H} {fs} {s} {onmove} {range} />
 		<line x1="0" x2={L} y1={H + pad} y2={H + pad} stroke="var(--faint)" stroke-width={sw} />
@@ -96,6 +93,11 @@
 		display: block;
 		user-select: none;
 		-webkit-user-select: none;
+	}
+	.lintel {
+		font-family: var(--font);
+		font-weight: 700;
+		fill: var(--surface);
 	}
 	.dim {
 		font-family: var(--font-num);

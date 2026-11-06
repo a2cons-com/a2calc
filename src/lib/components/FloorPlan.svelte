@@ -33,7 +33,9 @@
 	const off = $derived(fs * 2.2);
 	/** Inside dimension string, from the wall's inside face. */
 	const offIn = $derived(fs * 1.9);
-	const m = $derived(off + fs * 1.6);
+	/** Margin: room for the outside dimension, and on a lone wall for the
+	 *  inside dimension string and its number tag. */
+	const m = $derived(Math.max(off + fs * 1.6, t + offIn + fs * 3));
 	const view = $derived(`${x0 - m} ${y0 - m} ${x1 - x0 + 2 * m} ${y1 - y0 + 2 * m}`);
 	const sw = $derived(s / 500);
 

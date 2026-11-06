@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatFtIn, formatNumber } from '$lib/calc/units';
-	import { actualWidth, CMU_WIDTHS, groutVolume, wallTotals, type CmuWidth } from '$lib/takeoff/grout';
+	import { actualWidth, CMU_WIDTHS, groutVolume, wallsGrout, wallTotals, type CmuWidth } from '$lib/takeoff/grout';
 	import { moveRange } from '$lib/takeoff/framing';
 	import { planWalls } from '$lib/takeoff/plan';
 	import { blockScene } from '$lib/takeoff/scene';
@@ -17,6 +17,7 @@
 	const solid = $derived(!st.spacingIn);
 	const totals = $derived(wallTotals(st.runs, st.closed, st.heightIn));
 	const plan = $derived(planWalls(st.runs, actualWidth(st.width), st.closed));
+	const grid = $derived(wallsGrout(st.runs, st.closed, st.heightIn, st.spacingIn, st.cellsPerCorner));
 	let selectedId = $state<number | null>(null);
 	const sel = $derived(st.runs.find((x) => x.id === selectedId) ?? st.runs[0]);
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
@@ -38,6 +39,7 @@
 		<span>Waste {st.wastePct}%</span><span>{formatNumber(r.wasteFt3, 1)} cu ft</span>
 		{#if st.pumpYd3 > 0}<span>Pump and hose</span><span>{yd(st.pumpYd3)} yd</span>{/if}
 		<span>Total</span><span>{yd(r.totalYd3)} yd</span>
+		{#if r.lintels}<span>Lintels ({r.lintels})</span><span>{formatNumber(r.lintelFt3, 1)} cu ft of the grout</span>{/if}
 		{#if r.cells !== null}<span>Cells grouted</span><span>{r.cells}</span>{/if}
 		<span>Blocks (no waste)</span><span>{r.blocks.toLocaleString('en-US')}</span>
 		<span>Wall length</span><span>{ft(totals.lengthIn)} · {st.runs.length} {st.runs.length === 1 ? 'wall' : 'walls'}</span>
@@ -45,12 +47,13 @@
 		{#if totals.openingsSf > 0}<span>Openings</span><span>{formatNumber(totals.openingsSf, 1)} sq ft</span>{/if}
 	</ResultCard>
 
-	<PlanCard material="block" {plan} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => blockScene(plan, st.heightIn, st.spacingIn, sel?.id ?? -1)} />
+	<PlanCard material="block" {plan} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => blockScene(plan, st.heightIn, st.spacingIn, st.cellsPerCorner, st.closed, sel?.id ?? -1)} />
 
 	<WallList walls={st} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} openingLabel="Opening">
 		{#snippet elevation(run, move)}
-			{@const w = plan.walls.find((x) => x.run.id === run.id)}
-			{#if w}<BlockElevation wall={w} height={st.heightIn} spacingIn={st.spacingIn} onmove={move} range={(id) => moveRange(run, id, st.heightIn)} />{/if}
+			{@const k = st.runs.indexOf(run)}
+			{@const w = plan.walls[k]}
+			{#if w && grid[k]}<BlockElevation wall={w} height={st.heightIn} spacingIn={st.spacingIn} grout={grid[k]} onmove={move} range={(id) => moveRange(run, id, st.heightIn)} />{/if}
 		{/snippet}
 	</WallList>
 
@@ -73,10 +76,13 @@
 	</div>
 	<div class="fields gap">
 		{#if solid}
-			<p class="fine note">Every cell filled, except at the doors and windows drawn on the walls.</p>
+			<p class="fine note">Every cell filled, except at the doors and windows drawn on the walls; the lintels over them are part of it.</p>
 		{:else}
 			<Field label="Cells at each corner" kind="number" bind:value={st.cellsPerCorner} integer min={0} max={6} />
-			<p class="fine note">Plus one cell at each open wall end and each side of every door and window ({totals.ends} here).</p>
+			<p class="fine note">
+				Always grouted, whatever the spacing: the cell each side of every door and window, one cell at a free wall end, and a lintel over each
+				opening (8″ deep up to 6′ wide, 16″ wider, bearing 8″ each side).
+			</p>
 		{/if}
 	</div>
 

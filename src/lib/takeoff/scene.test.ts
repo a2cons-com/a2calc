@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { groutVolume, wallTotals } from './grout';
+import { groutVolume, wallGrout, wallTotals } from './grout';
 import { frameWall, type Run } from './framing';
 import { planWalls } from './plan';
-import { blockScene, concreteScene, framingScene, wallCells } from './scene';
+import { blockScene, concreteScene, framingScene } from './scene';
 
 const door = (id: number, offset: number | null = null) => ({ id, kind: 'door' as const, width: 36, height: 84, sill: 0, offset, header: '' });
 
@@ -24,11 +24,24 @@ describe('block walls drawn one by one', () => {
 		const typed = groutVolume({ ...base, lengthIn: 120, outside: false, corners: 0, ends: 2 });
 		expect(drawn.netFt3).toBeCloseTo(typed.netFt3);
 	});
-	it('grouts both jambs of a door when partly grouted', () => {
+	it('grouts both jambs of a door and a lintel over it, whatever the spacing', () => {
 		const run: Run = { id: 1, length: 192, openings: [door(2, 72)] };
-		const [w] = planWalls([run], 7.625, false).walls;
-		// Every 48″ (cells 0, 6, 12, 18 and the last), plus 68 and 112 by the door.
-		expect(wallCells(w, 48)).toEqual([4, 52, 68, 100, 112, 148, 188]);
+		const g = wallGrout(run, false, false, 96, 48, 1);
+		// The 36″ x 84″ door is laid as a 40″ x 88″ masonry opening.
+		expect(g.holes[0]).toEqual([72, 112, 0, 88]);
+		// Every 48″ (cells 0, 6, 12, 18 and the last), plus 68 and 116 by the door.
+		expect([...new Set(g.columns.map((c) => c.x))]).toEqual([4, 52, 68, 100, 116, 148, 188]);
+		// One course of lintel over it, 8″ past each jamb.
+		expect(g.lintels).toEqual([{ a: 64, b: 120, y0: 88, y1: 96 }]);
+		expect(g.lintelCells).toBe(7);
+		// Six full lines of 12 courses; the line at 100 is in the door but
+		// for the top course; the lintel adds 4 cells not in a line.
+		expect(g.cells).toBe(6 * 12 + 1 + 4);
+	});
+	it('counts a wide opening\'s lintel two courses deep', () => {
+		const win = { id: 2, kind: 'window' as const, width: 96, height: 48, sill: 32, offset: 48, header: '' };
+		const g = wallGrout({ id: 1, length: 240, openings: [win] }, false, false, 120, 0, 1);
+		expect(g.lintels[0]).toEqual({ a: 40, b: 152, y0: 80, y1: 96 });
 	});
 });
 
@@ -41,8 +54,8 @@ describe('3D scenes', () => {
 	});
 	it('leaves a door out of the block courses', () => {
 		const run: Run = { id: 1, length: 96, openings: [] };
-		const plain = blockScene(planWalls([run], 7.625, false), 96, 0, 1).solids.filter((s) => s.mat === 'block').length;
-		const withDoor = blockScene(planWalls([{ ...run, openings: [door(2)] }], 7.625, false), 96, 0, 1).solids.filter((s) => s.mat === 'block');
+		const plain = blockScene(planWalls([run], 7.625, false), 96, 0, 1, false, 1).solids.filter((s) => s.mat === 'block').length;
+		const withDoor = blockScene(planWalls([{ ...run, openings: [door(2)] }], 7.625, false), 96, 0, 1, false, 1).solids.filter((s) => s.mat === 'block');
 		expect(plain).toBe(6 * 6 + 6 * 7);
 		expect(withDoor.length).toBeLessThan(plain);
 	});
