@@ -16,7 +16,8 @@
 		<AppMark size={52} />
 		<div>
 			<div class="name">A2 Calc</div>
-			<div class="fine">Version {version} · free, no ads, no account</div>
+			<div class="fine">by A2 Labs · version {version}</div>
+			<div class="fine">Free, no ads, no account</div>
 		</div>
 	</div>
 
@@ -51,10 +52,19 @@
 	<div class="card fine">
 		Block fill grout: Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, Estimating Concrete Masonry Materials</a>
 		(Concrete Masonry &amp; Hardscapes Association), industry estimating guidance. Concrete waste and pump allowances, stud layout and framing
-		rules are common trade practice. A2 Calc is not affiliated with or endorsed by any of the organizations named.
+		rules are common trade practice.
 	</div>
 
-	<p class="fine made"><Logo size={20} /><span>Made by <a href="https://a2cons.com" target="_blank" rel="noopener">A2 Construction</a></span></p>
+	<div class="section-title">Legal</div>
+	<div class="card fine legal">
+		<p>© {new Date().getFullYear()} A2 Labs. A2 Calc is made by A2 Labs.</p>
+		<p>
+			Names of other organizations and their publications, such as CMHA (Concrete Masonry &amp; Hardscapes Association) and TEK, belong to
+			their owners and are used only to name a source. A2 Calc is not affiliated with, sponsored or endorsed by any of them.
+		</p>
+	</div>
+
+	<p class="fine made"><Logo size={20} /><span>Made by A2 Labs</span></p>
 </div>
 
 <style>
@@ -97,6 +107,12 @@
 		width: 22px;
 		height: 22px;
 		accent-color: var(--primary);
+	}
+	.legal p {
+		margin: 0 0 8px;
+	}
+	.legal p:last-child {
+		margin: 0;
 	}
 	.made {
 		display: flex;

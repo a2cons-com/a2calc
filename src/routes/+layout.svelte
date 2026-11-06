@@ -64,6 +64,7 @@
 	<div class="welcome">
 		<AppMark size={64} />
 		<h2>Welcome to A2 Calc</h2>
+		<p class="by">by A2 Labs</p>
 		<p>Feet, inches and fractions; areas and volumes; quick concrete, block grout and stud wall takeoffs. Free, with no ads and no account.</p>
 		<p class="fine">
 			Check every number before you build or order with it. A2 Calc is an estimating aid: it is not engineering advice, and nothing it shows is a sealed or certified calculation.
@@ -134,6 +135,12 @@
 	.welcome p {
 		margin: 0;
 		line-height: 1.45;
+	}
+	.welcome .by {
+		margin-top: -6px;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--muted);
 	}
 	.welcome .btn {
 		width: 100%;
