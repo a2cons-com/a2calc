@@ -4,9 +4,13 @@ yard more), then the same app footage as make_promo.py, captioned for the
 new narration (narration-trucks.txt), and ends on "One truck. The right
 truck." Uses make_promo.py's drawing, timeline and audio mix as is.
 
-  python make_promo_trucks.py --shots DIR --vo DIR --music FILE --music-start 0.75 --out trucks.mp4
+  python make_promo_trucks.py --shots DIR --vo DIR --music FILE --music-start 0 --music-gain 1.5 --out trucks.mp4
+  (--video old.mp4 instead of --shots: new music only, as in make_promo.py)
 
-Music: W. C. Handy, "Ole Miss Rag", Handy's Orchestra of Memphis, 1917
+Music: Loyalty Freak Music, "Can't Stop My Feet !", from the album ROLLER
+DISCO DANCE DANCE, CC0 1.0 (public domain dedication, no attribution
+needed): https://archive.org/details/LoyaltyFreakMusic-ROLLERDISCODANCEDANCE
+Earlier: W. C. Handy, "Ole Miss Rag", Handy's Orchestra of Memphis, 1917
 (Wikimedia Commons, File:W.C. Handy -Ole miss rag 1917.ogg; recording and
 composition public domain in the US).
 """

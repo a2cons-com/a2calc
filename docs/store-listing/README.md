@@ -11,6 +11,14 @@ Everything the App Store and Google Play listings need, in one place.
 | `video/a2calc-promo-trucks.mp4` | The second, funnier promo ("One truck. The right truck."), ending on a plug for A2 Construction, 36 s, 1080x1920 |
 | `video/a2calc-app-preview.mp4` | The first promo at 886x1920, within Apple's app preview specs (not uploaded) |
 
+Music in the promos, both CC0 1.0 (public domain dedication, free for
+commercial use, no attribution needed), from Loyalty Freak Music's album
+ROLLER DISCO DANCE DANCE
+(https://archive.org/details/LoyaltyFreakMusic-ROLLERDISCODANCEDANCE):
+"Roller Fever" in the first promo and the app preview, "Can't Stop My
+Feet !" in the trucks promo. To change only the music, re-render with
+`--video <earlier render>` (see `scripts/promo/make_promo.py`).
+
 Regenerate the screenshots with `scripts/store/` (see `shots.cjs`), the
 video with `scripts/promo/`. Push them with:
 
