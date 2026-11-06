@@ -2,6 +2,7 @@
 	import * as C from '$lib/calc/calculator';
 	import { formatAs, formatsFor, frac, PRECISIONS, UNITS, UNITS_BY_DIM, DIM_NAME, type UnitId, type Dim } from '$lib/calc/units';
 	import { calc, prefs } from '$lib/stores/app.svelte';
+	import { openParens } from '$lib/calc/expression';
 	import Keypad from '$lib/components/Keypad.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -9,21 +10,28 @@
 
 	const s = $derived(calc.s);
 	const den = $derived(prefs.precision);
-	const live = $derived(C.live(s));
-	const value = $derived(live.value);
+	// Nothing is worked out while typing: the big line is the formula; the
+	// answer replaces it only on '='.
+	const value = $derived(s.done);
 	const fmt = $derived(value && value.d > 0 ? prefs.fmt[value.d as 1 | 2 | 3] : 'ftin');
-	const shown = $derived(value ? formatAs(value, fmt, den) : { text: '0', rounded: false });
+	const shown = $derived(value ? formatAs(value, fmt, den) : null);
 	const expr = $derived(C.exprText(s));
-	const error = $derived(s.error ?? (s.done ? null : live.error));
-	const typing = $derived(!s.done);
-	const size = $derived(shown.text.length > 16 ? 1.9 : shown.text.length > 12 ? 2.4 : shown.text.length > 9 ? 2.9 : 3.4);
+	const open = $derived(openParens(s.tokens));
+	const big = $derived(shown ? shown.text : expr ? expr + (open ? ')'.repeat(open) : '') : '0');
+	const size = $derived.by(() => {
+		const n = big.length;
+		if (shown) return n > 16 ? 1.9 : n > 12 ? 2.4 : n > 9 ? 2.9 : 3.4;
+		return n > 34 ? 1.35 : n > 22 ? 1.7 : n > 14 ? 2.1 : n > 9 ? 2.6 : 3.2;
+	});
+	const error = $derived(s.error);
 
 	const current = $derived.by(() => {
 		const last = s.tokens[s.tokens.length - 1];
 		return last?.kind === 'entry' ? last.entry : null;
 	});
-	const unitEnabled = $derived(!s.done && !!current && current.raw !== '' && !/['"]/.test(current.raw));
-
+	// Unit keys tag the number just typed, or re-unit an answer.
+	const unitEnabled = $derived(!!s.done || (!!current && current.raw !== '' && !/['"]/.test(current.raw)));
+	const vars = $derived(s.vars ?? {});
 	let tapeOpen = $state(false);
 	let unitOpen = $state(false);
 	let precOpen = $state(false);
@@ -31,8 +39,37 @@
 	const set = (next: C.CalcState) => (calc.s = next);
 
 	function pickUnit(u: UnitId) {
-		set(C.unit(s, u));
 		unitOpen = false;
+		const d = s.done?.d;
+		if (s.done && d) {
+			// An answer with a unit: show it in this one, if it's the same kind.
+			if (UNITS[u].d === d) prefs.fmt[d as 1 | 2 | 3] = u;
+			else set({ ...s, error: `That answer is ${DIM_NAME[d as Dim].toLowerCase() === 'area' ? 'an area' : `a ${DIM_NAME[d as Dim].toLowerCase()}`}` });
+			return;
+		}
+		set(C.unit(s, u));
+	}
+
+	// Memory bar: tap a stored letter to use it; tap an empty one to store
+	// the answer (or the formula's value); hold one for the memory sheet.
+	let memOpen = $state(false);
+	let holdTimer: ReturnType<typeof setTimeout> | null = null;
+	let held = false;
+	function memDown() {
+		held = false;
+		holdTimer = setTimeout(() => {
+			held = true;
+			memOpen = true;
+		}, 500);
+	}
+	function memUp() {
+		if (holdTimer) clearTimeout(holdTimer);
+		holdTimer = null;
+	}
+	function memTap(name: C.VarName) {
+		if (held) return;
+		if (vars[name]) set(C.useVar(s, name));
+		else set(C.storeVar(s, name));
 	}
 
 	function reuse(line: C.TapeLine) {
@@ -50,7 +87,7 @@
 		return () => mq.removeEventListener('change', update);
 	});
 	function onfn(f: 'sq' | 'cube' | 'sqrt' | 'neg' | 'pi') {
-		set(f === 'pi' ? C.pi(s) : C.fn(s, f, den));
+		set(f === 'pi' ? C.pi(s) : C.fn(s, f, den, fmt));
 	}
 	const resultText = (line: C.TapeLine) => formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text;
 
@@ -66,6 +103,10 @@
 		<Logo size={22} />
 		<span class="title">Calc</span>
 		<span class="spacer"></span>
+		{#if landscape}
+			<button class="pill" disabled={!unitEnabled} onclick={() => (unitOpen = true)}>Unit</button>
+		{/if}
+		<button class="pill" onclick={() => (memOpen = true)} aria-label="Memory">M</button>
 		<button class="pill" onclick={() => (precOpen = true)} aria-label="Fraction precision">
 			<span class="num">{frac(1, den)}″</span>
 		</button>
@@ -74,9 +115,9 @@
 	</header>
 
 	<section class="display" aria-live="polite">
-		<div class="expr num" class:typing>{expr || ' '}</div>
-		<div class="result num" class:done={!typing} style="font-size:{size}rem">
-			{#if shown.rounded}<span class="approx" title="Rounded to {frac(1, den)}″">≈</span>{/if}{shown.text}
+		<div class="expr num">{s.done ? (s.tape[0]?.expr ?? '') : ' '}</div>
+		<div class="result num" class:done={!!shown} class:formula={!shown} style="font-size:{size}rem">
+			{#if shown?.rounded}<span class="approx" title="Rounded to {frac(1, den)}″">≈</span>{/if}{big}
 		</div>
 		<div class="meta">
 			{#if error}
@@ -95,6 +136,24 @@
 			<div class="formats placeholder"></div>
 		{/if}
 	</section>
+	<div class="mem" role="group" aria-label="Memory">
+		{#each C.VARS as name (name)}
+			{@const v = vars[name]}
+			<button
+				class="mem-key"
+				class:set={!!v}
+				onpointerdown={memDown}
+				onpointerup={memUp}
+				onpointerleave={memUp}
+				oncontextmenu={(e) => e.preventDefault()}
+				onclick={() => memTap(name)}
+				aria-label={v ? `Use ${name}` : `Store in ${name}`}
+			>
+				<span class="mem-name">{name}</span>
+				{#if v}<span class="mem-val num">{formatAs(v, v.d > 0 ? prefs.fmt[v.d as 1 | 2 | 3] : 'ftin', den).text}</span>{/if}
+			</button>
+		{/each}
+	</div>
 	{#if landscape}
 		<ul class="mini-tape">
 			{#each s.tape.slice(0, 30) as line (line.at)}
@@ -119,7 +178,9 @@
 			onkey={(k) => set(C.key(s, k))}
 			onback={() => set(C.back(s))}
 			onclear={() => set(C.clear(s))}
-			onop={(o) => set(C.op(s, o, den))}
+			onop={(o) => set(C.op(s, o, den, fmt))}
+			onparen={(p) => set(C.paren(s, p, den, fmt))}
+			canParen={(p) => C.canParen(s, p)}
 			onequals={() => set(C.equals(s))}
 			onunit={() => (unitOpen = true)}
 			wide={landscape}
@@ -162,6 +223,24 @@
 			{/each}
 		</div>
 	{/each}
+</Sheet>
+
+<Sheet bind:open={memOpen} title="Memory">
+	<p class="fine">Tap a letter on the bar to use it; tap an empty one right after = to store the answer there.</p>
+	<ul class="mem-list">
+		{#each C.VARS as name (name)}
+			{@const v = vars[name]}
+			<li>
+				<span class="ml-name">{name}</span>
+				<span class="ml-val num">{v ? formatAs(v, v.d > 0 ? prefs.fmt[v.d as 1 | 2 | 3] : 'ftin', den).text : 'empty'}</span>
+				<button class="btn" onclick={() => { set(C.storeVar(s, name)); }} disabled={!s.done && !expr}>Store {s.done ? 'answer' : 'formula'}</button>
+				{#if v}
+					<button class="btn" onclick={() => { set(C.useVar(s, name)); memOpen = false; }}>Use</button>
+					<button class="btn quiet" onclick={() => set(C.clearVar(s, name))} aria-label="Clear {name}"><Icon name="trash" size={18} /></button>
+				{/if}
+			</li>
+		{/each}
+	</ul>
 </Sheet>
 
 <Sheet bind:open={precOpen} title="Fraction precision">
@@ -216,10 +295,6 @@
 		overflow-y: auto;
 		word-break: break-word;
 	}
-	.expr.typing {
-		color: var(--text);
-		font-size: 1.45rem;
-	}
 	.result {
 		font-weight: 600;
 		line-height: 1.1;
@@ -232,6 +307,76 @@
 	}
 	.result.done {
 		color: var(--text);
+	}
+	.result.formula {
+		color: var(--text);
+		white-space: normal;
+		word-break: break-word;
+		font-weight: 500;
+		max-height: 3.4em;
+		overflow-y: auto;
+	}
+	.mem {
+		display: grid;
+		grid-template-columns: repeat(6, 1fr);
+		gap: 5px;
+		margin: 0 0 8px;
+		flex: none;
+	}
+	.mem-key {
+		height: 38px;
+		border-radius: 10px;
+		border: 1.5px dashed var(--border);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		line-height: 1.05;
+		color: var(--faint);
+		-webkit-touch-callout: none;
+	}
+	.mem-key.set {
+		border: 0;
+		background: var(--primary-soft);
+		color: var(--primary-text);
+	}
+	.mem-name {
+		font-weight: 700;
+		font-size: 0.95rem;
+	}
+	.mem-val {
+		font-size: 0.62rem;
+		font-weight: 600;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		padding: 0 3px;
+	}
+	.mem-list {
+		list-style: none;
+		margin: 10px 0 0;
+		padding: 0;
+	}
+	.mem-list li {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 0;
+		border-top: 1px solid var(--border);
+	}
+	.ml-name {
+		font-weight: 700;
+		width: 1.4em;
+		color: var(--primary-text);
+	}
+	.ml-val {
+		flex: 1;
+		font-weight: 600;
+	}
+	.mem-list .btn {
+		padding: 8px 12px;
+		font-size: 0.88rem;
 	}
 	.approx {
 		font-size: 0.6em;

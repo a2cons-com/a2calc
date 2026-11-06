@@ -23,6 +23,8 @@
 		ondone,
 		onfn,
 		onquick,
+		onparen,
+		canParen = () => true,
 		wide = false,
 		unitEnabled = true
 	}: {
@@ -40,6 +42,8 @@
 		onfn?: (f: Fx) => void;
 		/** One-tap unit tags for the number just typed (5 then ft³). */
 		onquick?: (u: 'sqft' | 'cuft' | 'cuyd') => void;
+		onparen?: (p: '(' | ')') => void;
+		canParen?: (p: '(' | ')') => boolean;
 		wide?: boolean;
 		unitEnabled?: boolean;
 	} = $props();
@@ -72,6 +76,12 @@
 {#snippet quickKey(u: 'sqft' | 'cuft' | 'cuyd', label: string, aria: string)}
 	<button class="key quick" aria-label={aria} disabled={!unitEnabled} onclick={() => { tap(); onquick?.(u); }}>{label}</button>
 {/snippet}
+{#snippet parens()}
+	<div class="parens">
+		<button class="key fn par" disabled={!canParen('(')} onclick={() => { tap(); onparen?.('('); }} aria-label="Open parenthesis">(</button>
+		<button class="key fn par" disabled={!canParen(')')} onclick={() => { tap(); onparen?.(')'); }} aria-label="Close parenthesis">)</button>
+	</div>
+{/snippet}
 {#snippet fnKey(f: Fx, label: string, aria: string)}
 	<button class="key fx" aria-label={aria} onclick={() => { tap(); onfn?.(f); }}>{label}</button>
 {/snippet}
@@ -80,8 +90,8 @@
 	<div class="pad calc wide">
 		{@render quickKey('sqft', 'ft²', 'Square feet')}
 		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
-		<button class="key fn small" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={24} /></button>
+		{@render parens()}
 		{@render opKey('÷')}
 
 		{@render quickKey('cuft', 'ft³', 'Cubic feet')}
@@ -106,6 +116,7 @@
 			{@render quickKey('sqft', 'ft²', 'Square feet')}
 			{@render quickKey('cuft', 'ft³', 'Cubic feet')}
 			{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
+			<button class="key quick unitmore" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
 			<span class="gap"></span>
 			{@render fnKey('sq', 'x²', 'Square')}
 			{@render fnKey('cube', 'x³', 'Cube')}
@@ -113,7 +124,7 @@
 		</div>
 		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={26} /></button>
-		<button class="key fn small" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
+		{@render parens()}
 		{@render opKey('÷')}
 
 		{@render unitKey('ft', '′', 'feet')}
@@ -152,9 +163,23 @@
 	.strip {
 		grid-column: 1 / -1;
 		display: grid;
-		grid-template-columns: repeat(3, 1fr) 4px repeat(3, 1fr);
+		grid-template-columns: repeat(4, 1fr) 2px repeat(3, 1fr);
+		gap: 5px;
+		min-height: 0;
+	}
+	.parens {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 		gap: 6px;
 		min-height: 0;
+	}
+	.par {
+		font-size: 1.6rem;
+		font-weight: 500;
+		font-family: var(--font-num);
+	}
+	.quick.unitmore {
+		font-size: 0.9rem;
 	}
 	.quick {
 		background: var(--key-unit);

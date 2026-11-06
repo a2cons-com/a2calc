@@ -2,8 +2,8 @@
 // tested: keys go in, the expression / live result / tape come out.
 
 import { backspace, canPress, emptyEntry, entryValue, isEmpty, press, type Entry, type EntryKey } from './entry';
-import { CalcError, evaluate, tokenText, type Op, type Token } from './expression';
-import { formatAs, defaultFormat, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
+import { CalcError, evaluate, openParens, tokensText, tokenText, type Op, type Token } from './expression';
+import { formatAs, defaultFormat, fromUnit, UNITS, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
 export interface TapeLine {
 	expr: string;
@@ -11,8 +11,13 @@ export interface TapeLine {
 	at: number;
 }
 
+export const VARS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
+export type VarName = (typeof VARS)[number];
+
 export interface CalcState {
 	tokens: Token[];
+	/** Memory: answers stored under a letter. */
+	vars?: Partial<Record<VarName, Quantity>>;
 	/** The result of the last '=', shown until the next key. */
 	done: Quantity | null;
 	error: string | null;
@@ -48,6 +53,11 @@ export function canKey(s: CalcState, key: EntryKey): boolean {
 export function key(s: CalcState, k: EntryKey): CalcState {
 	// A new number after '=' starts over (the tape keeps the old one).
 	if (s.done) s = { ...s, tokens: [{ kind: 'entry', entry: emptyEntry() }], done: null };
+	const last = s.tokens[s.tokens.length - 1];
+	if (last.kind === 'paren') {
+		// A number right after ")" multiplies: (2′ + 3′)4 = (2′ + 3′) × 4.
+		return { ...s, tokens: [...s.tokens, { kind: 'op', op: '×' }, { kind: 'entry', entry: press(emptyEntry(), k) }], error: null };
+	}
 	const e = current(s);
 	if (!e) {
 		// After a reused value: typing replaces it.
@@ -57,28 +67,62 @@ export function key(s: CalcState, k: EntryKey): CalcState {
 	return setCurrent(s, press(e, k));
 }
 
-/** Tag the current entry with a unit (sq ft, cu yd, m...). */
+/** The last token holds a finished operand (a number, a value or ")"). */
+function hasOperand(s: CalcState): boolean {
+	const last = s.tokens[s.tokens.length - 1];
+	return last.kind === 'value' || (last.kind === 'paren' && last.p === ')') || (last.kind === 'entry' && entryValue(last.entry) !== null);
+}
+
+export function canParen(s: CalcState, p: '(' | ')'): boolean {
+	if (p === '(') return true;
+	return !s.done && openParens(s.tokens) > 0 && hasOperand(s);
+}
+
+export function paren(s: CalcState, p: '(' | ')', den: number, fmt?: LengthFormat): CalcState {
+	if (!canParen(s, p)) return s;
+	if (p === ')') return { ...s, tokens: [...s.tokens, { kind: 'paren', p: ')' }], error: null };
+	if (s.done) {
+		// "(" after an answer starts a new formula with the answer times it.
+		return { ...s, tokens: [{ kind: 'value', value: s.done, text: valueText(s.done, den, fmt) }, { kind: 'op', op: '×' }, { kind: 'paren', p: '(' }, { kind: 'entry', entry: emptyEntry() }], done: null, error: null };
+	}
+	const tokens = [...s.tokens];
+	if (hasOperand(s)) tokens.push({ kind: 'op', op: '×' });
+	else tokens.pop(); // the empty entry
+	return { ...s, tokens: [...tokens, { kind: 'paren', p: '(' }, { kind: 'entry', entry: emptyEntry() }], error: null };
+}
+
+/** Tag the current entry with a unit (sq ft, cu yd, m...), or give a
+ *  plain-number answer one. */
 export function unit(s: CalcState, u: UnitId): CalcState {
-	if (s.done) return s;
+	if (s.done) {
+		// A plain-number answer takes the unit (10 × 12 = 120, then sq ft).
+		// An answer that already has this kind of unit is only shown in it,
+		// which the display does.
+		if (s.done.d !== 0) return s;
+		const v = fromUnit(s.done.v, u);
+		const tape = s.tape.length ? [{ ...s.tape[0], expr: `${s.tape[0].expr} → ${UNITS[u].label}`, result: v }, ...s.tape.slice(1)] : s.tape;
+		return { ...s, done: v, tape, error: null };
+	}
 	const e = current(s);
 	if (!e || /['"]/.test(e.raw) || e.raw === '') return s;
 	return setCurrent(s, { ...e, unit: u });
 }
 
-export function op(s: CalcState, o: Op, den: number): CalcState {
+/** `fmt`: how the answer is shown now, so carrying it on keeps that unit. */
+export function op(s: CalcState, o: Op, den: number, fmt?: LengthFormat): CalcState {
 	if (s.done) {
-		return { ...s, tokens: [{ kind: 'value', value: s.done, text: valueText(s.done, den) }, { kind: 'op', op: o }, { kind: 'entry', entry: emptyEntry() }], done: null, error: null };
+		return { ...s, tokens: [{ kind: 'value', value: s.done, text: valueText(s.done, den, fmt) }, { kind: 'op', op: o }, { kind: 'entry', entry: emptyEntry() }], done: null, error: null };
 	}
 	const tokens = [...s.tokens];
 	const last = tokens[tokens.length - 1];
 	if (last.kind === 'entry' && isEmpty(last.entry)) {
-		// Change the operator just typed, or start a negative number.
+		// Change the operator just typed; nothing to apply it to otherwise.
 		const prev = tokens[tokens.length - 2];
 		if (prev?.kind === 'op') {
 			tokens[tokens.length - 2] = { kind: 'op', op: o };
 			return { ...s, tokens, error: null };
 		}
-		if (tokens.length === 1) return s;
+		return s;
 	}
 	return { ...s, tokens: [...tokens, { kind: 'op', op: o }, { kind: 'entry', entry: emptyEntry() }], error: null };
 }
@@ -88,7 +132,7 @@ export function equals(s: CalcState): CalcState {
 	try {
 		const result = evaluate(s.tokens);
 		if (!result) return s;
-		const expr = exprText(s);
+		const expr = exprText(s) + ')'.repeat(openParens(s.tokens));
 		const tape = [{ expr, result, at: Date.now() }, ...s.tape].slice(0, TAPE_MAX);
 		return { ...s, done: result, tape, error: null };
 	} catch (e) {
@@ -106,13 +150,43 @@ export function back(s: CalcState): CalcState {
 		tokens[tokens.length - 1] = { kind: 'entry', entry: emptyEntry() };
 		return { ...s, tokens, error: null };
 	}
-	// Empty entry: drop it and the operator before it.
-	if (tokens.length >= 3) return { ...s, tokens: tokens.slice(0, -2), error: null };
-	return s;
+	if (last.kind === 'paren') return { ...s, tokens: tokens.slice(0, -1), error: null };
+	// Empty entry: drop it and the operator or "(" before it.
+	if (tokens.length < 2) return s;
+	const rest = tokens.slice(0, -2);
+	const end = rest[rest.length - 1];
+	if (!end || end.kind === 'op' || (end.kind === 'paren' && end.p === '(')) rest.push({ kind: 'entry', entry: emptyEntry() });
+	return { ...s, tokens: rest, error: null };
 }
 
 export function clear(s: CalcState): CalcState {
-	return { ...initialState(), tape: s.tape };
+	return { ...initialState(), tape: s.tape, vars: s.vars };
+}
+
+/** Store the answer under a letter; an unfinished formula is finished
+ *  first (as if = was pressed). */
+export function storeVar(s: CalcState, name: VarName): CalcState {
+	const done = s.done ? s : equals(s);
+	if (!done.done) return done;
+	return { ...done, vars: { ...(done.vars ?? {}), [name]: done.done } };
+}
+
+export function clearVar(s: CalcState, name: VarName): CalcState {
+	const vars = { ...(s.vars ?? {}) };
+	delete vars[name];
+	return { ...s, vars };
+}
+
+/** Put a stored letter into the formula. Right after a number or ")" it
+ *  multiplies (2A = 2 × A); after an answer it starts a new formula. */
+export function useVar(s: CalcState, name: VarName): CalcState {
+	const v = s.vars?.[name];
+	if (!v) return s;
+	const token: Token = { kind: 'value', value: v, text: name };
+	if (s.done) return { ...s, tokens: [token], done: null, error: null };
+	const last = s.tokens[s.tokens.length - 1];
+	if (last.kind === 'entry' && isEmpty(last.entry)) return { ...s, tokens: [...s.tokens.slice(0, -1), token], error: null };
+	return { ...s, tokens: [...s.tokens, { kind: 'op', op: '×' }, token], error: null };
 }
 
 /** Put a value (from the tape or a conversion) in as the current number. */
@@ -124,10 +198,7 @@ export function insert(s: CalcState, v: Quantity, den: number): CalcState {
 }
 
 export function exprText(s: CalcState): string {
-	return s.tokens
-		.map(tokenText)
-		.filter((t) => t !== '')
-		.join(' ');
+	return tokensText(s.tokens);
 }
 
 /** The live value: the finished result, else the expression so far. */
@@ -148,12 +219,34 @@ export type Fn = 'sq' | 'cube' | 'sqrt' | 'neg';
  *  x² doubles the dimension (a length squared is an area), x³ triples it
  *  (a length cubed is a volume), √ halves it (an area's root is a length),
  *  ± flips the sign. */
-export function fn(s: CalcState, f: Fn, den: number): CalcState {
+export function fn(s: CalcState, f: Fn, den: number, fmt?: LengthFormat): CalcState {
 	const fromDone = s.done !== null;
 	const last = s.tokens[s.tokens.length - 1];
-	const x = fromDone ? s.done : last.kind === 'entry' ? entryValue(last.entry) : last.kind === 'value' ? last.value : null;
+	// On ")": the whole group, (3′ + 4′)².
+	let from = s.tokens.length - 1;
+	if (!fromDone && last.kind === 'paren' && last.p === ')') {
+		let depth = 0;
+		for (let i = s.tokens.length - 1; i >= 0; i--) {
+			const t = s.tokens[i];
+			if (t.kind === 'paren') depth += t.p === ')' ? 1 : -1;
+			if (depth === 0) {
+				from = i;
+				break;
+			}
+		}
+	}
+	let x: Quantity | null;
+	let text: string;
+	try {
+		x = fromDone ? s.done : last.kind === 'paren' ? evaluate(s.tokens.slice(from)) : last.kind === 'entry' ? entryValue(last.entry) : last.kind === 'value' ? last.value : null;
+	} catch (e) {
+		if (e instanceof CalcError) return { ...s, error: e.message };
+		throw e;
+	}
 	if (!x) return s;
-	const text = fromDone ? valueText(x, den) : tokenText(last);
+	if (fromDone) text = valueText(x, den, fmt);
+	else if (last.kind === 'paren') text = tokensText(s.tokens.slice(from + 1, -1));
+	else text = tokenText(last);
 	let v: Quantity;
 	let label: string;
 	try {
@@ -182,9 +275,7 @@ export function fn(s: CalcState, f: Fn, den: number): CalcState {
 		const tape = [{ expr: label, result: v, at: Date.now() }, ...s.tape].slice(0, TAPE_MAX);
 		return { ...s, tokens: [{ kind: 'value', value: v, text: label }], done: v, tape, error: null };
 	}
-	const tokens = [...s.tokens];
-	tokens[tokens.length - 1] = { kind: 'value', value: v, text: label };
-	return { ...s, tokens, error: null };
+	return { ...s, tokens: [...s.tokens.slice(0, from), { kind: 'value', value: v, text: label }], error: null };
 }
 
 /** π as the current number. */

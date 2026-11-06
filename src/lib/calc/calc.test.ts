@@ -150,6 +150,65 @@ describe('calculator', () => {
 		d = C.fn(d, 'sqrt', 16);
 		expect(d.done).toEqual({ v: 60, d: 1 });
 	});
+	it('uses parentheses and precedence', () => {
+		// 2' + 3' × 2 = 8' ; (2' + 3') × 2 = 10'
+		expect(keys(C.initialState(), `2'+3'×2=`).done).toEqual({ v: 96, d: 1 });
+		let s = C.paren(C.initialState(), '(', 16);
+		s = keys(s, `2'+3'`);
+		s = C.paren(s, ')', 16);
+		s = keys(s, '×2=');
+		expect(s.done).toEqual({ v: 120, d: 1 });
+		expect(s.tape[0].expr).toBe('(2′ + 3′) × 2');
+	});
+	it('closes open parentheses at = and multiplies next to them', () => {
+		let s = keys(C.initialState(), '2');
+		s = C.paren(s, '(', 16); // 2 × (
+		s = keys(s, `3'+1'=`);
+		expect(s.done).toEqual({ v: 96, d: 1 });
+		expect(s.tape[0].expr).toBe('2 × (3′ + 1′)');
+		expect(C.canParen(keys(C.initialState(), '2'), ')')).toBe(false);
+	});
+	it('squares a whole group', () => {
+		let s = C.paren(C.initialState(), '(', 16);
+		s = keys(s, `3'+4'`);
+		s = C.paren(s, ')', 16);
+		s = C.equals(C.fn(s, 'sq', 16));
+		expect(toUnit(s.done!, 'sqft')).toBeCloseTo(49);
+	});
+	it('backspaces through parentheses', () => {
+		let s = keys(C.initialState(), '5+');
+		s = C.paren(s, '(', 16);
+		expect(C.exprText(s)).toBe('5 + (');
+		s = C.back(s);
+		expect(C.exprText(s)).toBe('5 +');
+		s = keys(s, '3');
+		expect(C.equals(s).done).toEqual({ v: 8, d: 0 });
+	});
+	it('gives a plain answer a unit and carries the shown unit on', () => {
+		let s = keys(C.initialState(), '10×12=');
+		s = C.unit(s, 'sqft');
+		expect(toUnit(s.done!, 'sqft')).toBeCloseTo(120);
+		expect(s.tape[0].expr).toBe('10 × 12 → sq ft');
+		let v = keys(C.initialState(), '54');
+		v = C.equals(C.unit(v, 'cuft'));
+		v = C.op(v, '×', 16, 'cuyd');
+		expect(C.exprText(v)).toBe('2 cu yd ×');
+	});
+	it('stores answers in letters and uses them', () => {
+		let s = keys(C.initialState(), `12'3"=`);
+		s = C.storeVar(s, 'A');
+		s = keys(s, `2'+`); // a new formula
+		s = C.storeVar(C.equals(keys(C.initialState(), `4'=`)), 'B');
+		let f = C.useVar({ ...s, vars: { A: { v: 147, d: 1 }, B: { v: 48, d: 1 } } }, 'A');
+		f = keys(f, '×2+');
+		f = C.useVar(f, 'B');
+		expect(C.exprText(f)).toBe('A × 2 + B');
+		expect(C.equals(f).done).toEqual({ v: 342, d: 1 });
+		// unfinished formula: store finishes it
+		const g = C.storeVar(keys(C.initialState(), `1'+1'`), 'C');
+		expect(g.vars?.C).toEqual({ v: 24, d: 1 });
+		expect(C.clear(g).vars?.C).toEqual({ v: 24, d: 1 });
+	});
 	it('cubes a length into a volume', () => {
 		const s = C.equals(C.fn(keys(C.initialState(), `3'`), 'cube', 16));
 		expect(toUnit(s.done!, 'cuyd')).toBeCloseTo(1);

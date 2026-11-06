@@ -32,7 +32,9 @@
 			<dt>3 ⁄ 4 ″</dt><dd>{frac(3, 4)}″</dd>
 			<dt>12.5 ′</dt><dd>12′ 6″</dd>
 		</dl>
-		<p>Length × length gives an area, × another length a volume; tap the unit chips under an answer to see it in other units. A plain number with no unit can multiply or divide, but can't be added to a length.</p>
+		<p>Nothing is worked out until you press =, so type the whole formula first. × and ÷ go before + and −; use ( ) to change that. Parentheses left open close at =.</p>
+		<p>Length × length gives an area, × another length a volume. ft², ft³ and yd³ put a unit on the number you just typed (5 then ft³ is 5 cubic feet); Unit has the rest. After =, the chips or the same keys show the answer in another unit, or give a plain number one. A plain number can multiply or divide a length, but can't be added to it.</p>
+		<p>Memory: after =, tap an empty letter (A to F) above the keys to keep the answer there; tap a stored letter to use it in a formula. Hold a letter, or tap M, to store over or clear.</p>
 		<p>Answers round to {frac(1, prefs.precision)}″ (tap the chip at the top to change it); ≈ marks a rounded answer.</p>
 	</div>
 
@@ -44,7 +46,14 @@
 	<div class="section-title">Please note</div>
 	<div class="card fine">
 		Check every number before you build or order with it. A2 Calc is an estimating aid: it is not engineering advice, and nothing it shows is a sealed or certified
-		calculation. Grout volumes follow CMHA / NCMA TEK 4-2A. Nothing you type leaves your phone.
+		calculation. Nothing you type leaves your phone.
+	</div>
+
+	<div class="section-title">Sources</div>
+	<div class="card fine">
+		Block fill grout: Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, Estimating Concrete Masonry Materials</a>
+		(Concrete Masonry &amp; Hardscapes Association), industry estimating guidance. Concrete waste and pump allowances, stud layout and framing
+		rules are common trade practice. A2 Calc is not affiliated with or endorsed by any of the organizations named.
 	</div>
 
 	<p class="fine made">Made by <a href="https://a2cons.com" target="_blank" rel="noopener">A2 Construction</a></p>

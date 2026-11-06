@@ -1,5 +1,6 @@
-// The expression on the display: values and operators, evaluated with the
-// usual precedence (× ÷ before + −) and dimension rules:
+// The expression on the display: values, operators and parentheses,
+// evaluated with the usual precedence (parentheses first, then × ÷, then
+// + −) and dimension rules:
 //   + −  same kind only (a length plus a length); a plain number can't be
 //        added to a length -- there's no telling if it meant feet or inches
 //   ×    dimensions add (length × length = area, area × length = volume)
@@ -11,7 +12,11 @@ import { DIM_NAME, type Dim, type Quantity } from './units';
 
 export type Op = '+' | '−' | '×' | '÷';
 
-export type Token = { kind: 'entry'; entry: Entry } | { kind: 'value'; value: Quantity; text: string } | { kind: 'op'; op: Op };
+export type Token =
+	| { kind: 'entry'; entry: Entry }
+	| { kind: 'value'; value: Quantity; text: string }
+	| { kind: 'op'; op: Op }
+	| { kind: 'paren'; p: '(' | ')' };
 
 export class CalcError extends Error {}
 
@@ -46,39 +51,70 @@ function tokenValue(t: Token): Quantity | null {
 	return null;
 }
 
-/** Evaluate; a trailing operator or empty entry is ignored (so a live
- *  preview works while typing). Returns null when there is nothing. */
+/** Evaluate. A trailing operator, empty entry or open parenthesis is
+ *  ignored, and parentheses left open close at the end, so a half-typed
+ *  formula can still be finished with '='. Returns null when empty. */
 export function evaluate(tokens: Token[]): Quantity | null {
 	const items = [...tokens];
-	while (items.length) {
-		const last = items[items.length - 1];
-		if (last.kind === 'op' || (last.kind === 'entry' && entryValue(last.entry) === null)) items.pop();
-		else break;
-	}
+	const dangling = (t: Token) => t.kind === 'op' || (t.kind === 'paren' && t.p === '(') || (t.kind === 'entry' && entryValue(t.entry) === null);
+	while (items.length && dangling(items[items.length - 1])) items.pop();
 	if (!items.length) return null;
 	const values: Quantity[] = [];
-	const ops: Op[] = [];
+	const ops: (Op | '(')[] = [];
 	const reduce = () => {
-		const b = values.pop()!;
-		const a = values.pop()!;
-		values.push(apply(a, ops.pop()!, b));
+		const b = values.pop();
+		const a = values.pop();
+		const o = ops.pop() as Op;
+		if (!a || !b) throw new CalcError('Incomplete formula');
+		values.push(apply(a, o, b));
 	};
 	for (const t of items) {
-		if (t.kind === 'op') {
-			while (ops.length && PREC[ops[ops.length - 1]] >= PREC[t.op]) reduce();
+		if (t.kind === 'paren') {
+			if (t.p === '(') ops.push('(');
+			else {
+				while (ops.length && ops[ops.length - 1] !== '(') reduce();
+				if (!ops.length) throw new CalcError('Unmatched )');
+				ops.pop();
+			}
+		} else if (t.kind === 'op') {
+			while (ops.length && ops[ops.length - 1] !== '(' && PREC[ops[ops.length - 1] as Op] >= PREC[t.op]) reduce();
 			ops.push(t.op);
 		} else {
 			const v = tokenValue(t);
-			if (v === null) throw new CalcError('Incomplete entry');
+			if (v === null) continue;
 			values.push(v);
 		}
 	}
-	while (ops.length) reduce();
+	while (ops.length) {
+		if (ops[ops.length - 1] === '(') ops.pop();
+		else reduce();
+	}
+	if (values.length !== 1) throw new CalcError('Incomplete formula');
 	return values[0];
+}
+
+/** How many parentheses are open at the end. */
+export function openParens(tokens: Token[]): number {
+	let n = 0;
+	for (const t of tokens) if (t.kind === 'paren') n += t.p === '(' ? 1 : -1;
+	return Math.max(0, n);
+}
+
+/** The formula as text: 2 × (5′ + 3′). */
+export function tokensText(tokens: Token[]): string {
+	let out = '';
+	for (const t of tokens) {
+		const text = tokenText(t);
+		if (!text) continue;
+		const tight = (t.kind === 'paren' && t.p === ')') || out.endsWith('(') || out === '';
+		out += (tight ? '' : ' ') + text;
+	}
+	return out;
 }
 
 export function tokenText(t: Token): string {
 	if (t.kind === 'op') return t.op;
+	if (t.kind === 'paren') return t.p;
 	if (t.kind === 'value') return t.text;
 	return formatEntry(t.entry);
 }

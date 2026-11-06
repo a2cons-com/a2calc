@@ -76,10 +76,18 @@
 		<Field label="Pump and hose" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="0 when bucketed" />
 	</div>
 
-	<p class="fine foot">
-		Volumes from the masonry industry's table for hollow two-core block (CMHA / NCMA TEK 4-2A), counted cell by cell for partial grouting. Rebar
-		volume is ignored. Bond beams and lintels are not included.
-	</p>
+	<div class="section-title">Source</div>
+	<div class="card fine source">
+		<p>
+			Grout volumes are based on Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, <i>Estimating Concrete Masonry Materials</i></a>,
+			a technical note from the Concrete Masonry &amp; Hardscapes Association (CMHA, formerly NCMA). It is industry estimating guidance, not a code or standard.
+		</p>
+		<p>
+			The table gives cubic feet of grout per 100 sq ft of wall for hollow two-core block, every cell filled, 3% waste included. A2 Calc takes the net volume
+			per cell from it and counts cells for partial grouting; your waste goes on top. Rebar, bond beams and lintels are not included.
+		</p>
+		<p>A2 Calc is not affiliated with or endorsed by CMHA.</p>
+	</div>
 </div>
 
 <style>
@@ -99,7 +107,10 @@
 		font-size: 0.82rem;
 		padding: 8px 2px;
 	}
-	.foot {
-		margin: 14px 4px;
+	.source p {
+		margin: 0 0 8px;
+	}
+	.source p:last-child {
+		margin: 0;
 	}
 </style>

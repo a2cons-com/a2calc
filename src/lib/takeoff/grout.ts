@@ -1,8 +1,9 @@
 // Grout to fill a hollow CMU wall.
 //
-// The source is CMHA/NCMA TEK 4-2A, Table 3 (grout volume for hollow
-// single-wythe CMU walls): ft³ per 100 ft² of wall by width, for two-core
-// units, 3% waste included. Its column is proportional to cells grouted,
+// Based on Table 3 of TEK 4-2A, "Estimating Concrete Masonry Materials"
+// (Concrete Masonry & Hardscapes Association, formerly NCMA): ft³ of grout
+// per 100 ft² of hollow single-wythe wall by width, for two-core units,
+// 3% waste included. Industry estimating guidance, not a standard. Its column is proportional to cells grouted,
 // so the solid (every cell) figure gives grout per cell per foot of
 // height, and partial grouting is counted cell by cell: cells at the
 // spacing plus extra ones at corners, ends and jambs. Rebar is ignored
