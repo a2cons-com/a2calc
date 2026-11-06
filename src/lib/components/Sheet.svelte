@@ -5,6 +5,8 @@
 	let { open = $bindable(false), title = '', children, actions }: { open?: boolean; title?: string; children: Snippet; actions?: Snippet } = $props();
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') open = false; }} />
+
 {#if open}
 	<div class="backdrop" transition:fade={{ duration: 150 }} onclick={() => (open = false)} role="presentation"></div>
 	<div class="sheet" role="dialog" aria-label={title} transition:fly={{ y: 400, duration: 220 }}>

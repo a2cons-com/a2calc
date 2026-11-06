@@ -44,7 +44,29 @@
 		open = false;
 	}
 	const can = (k: EntryKey) => canPress(entry, k) && !(req?.integer && (k === '.' || k === 'frac'));
+
+	// Typing into a field: digits, ' " / . Backspace, Enter = Done, Esc = cancel.
+	function onKeydown(e: KeyboardEvent) {
+		if (!open || !req || e.metaKey || e.ctrlKey || e.altKey) return;
+		const map: Record<string, EntryKey> = { "'": 'ft', '′': 'ft', '"': 'in', '″': 'in', '/': 'frac', '.': '.', ',': '.' };
+		const k: EntryKey | undefined = /^[0-9]$/.test(e.key) ? (e.key as EntryKey) : map[e.key];
+		if (k) {
+			e.preventDefault();
+			if (can(k) && (req.kind === 'length' || (k !== 'ft' && k !== 'in'))) entry = press(entry, k);
+		} else if (e.key === 'Backspace') {
+			e.preventDefault();
+			entry = backspace(entry);
+		} else if (e.key === 'Enter') {
+			e.preventDefault();
+			done();
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			open = false;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <Sheet bind:open title={req?.label ?? ''}>
 	{#if req}

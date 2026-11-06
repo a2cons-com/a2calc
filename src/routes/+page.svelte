@@ -8,6 +8,10 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import AppMark from '$lib/components/AppMark.svelte';
 	import MenuButton from '$lib/components/MenuButton.svelte';
+	import { keyAction } from '$lib/keyboard';
+	import { parseText } from '$lib/calc/entry';
+	import { editor } from '$lib/stores/editor.svelte';
+	import { nav } from '$lib/stores/nav.svelte';
 
 	const s = $derived(calc.s);
 	const den = $derived(prefs.precision);
@@ -92,11 +96,67 @@
 	}
 	const resultText = (line: C.TapeLine) => formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text;
 
+	// Physical keyboard: only while no sheet or field editor is open.
+	let copied = $state(false);
+	async function onKeydown(e: KeyboardEvent) {
+		if (tapeOpen || unitOpen || precOpen || memOpen || nav.open || editor.req) return;
+		const a = keyAction(e);
+		if (!a) return;
+		e.preventDefault();
+		switch (a.kind) {
+			case 'entry':
+				set(C.key(s, a.key));
+				break;
+			case 'slash':
+				set(C.canKey(s, 'frac') && !s.done ? C.key(s, 'frac') : C.op(s, '÷', den, fmt));
+				break;
+			case 'op':
+				set(C.op(s, a.op, den, fmt));
+				break;
+			case 'paren':
+				set(C.paren(s, a.p, den, fmt));
+				break;
+			case 'equals':
+				set(C.equals(s));
+				break;
+			case 'back':
+				set(C.back(s));
+				break;
+			case 'clear':
+				set(C.clear(s));
+				break;
+			case 'var':
+				if (vars[a.name as C.VarName]) set(C.useVar(s, a.name as C.VarName));
+				break;
+			case 'copy': {
+				const text = shown ? shown.text : big;
+				try {
+					await navigator.clipboard.writeText(text);
+					copied = true;
+					setTimeout(() => (copied = false), 1200);
+				} catch {
+					/* clipboard blocked */
+				}
+				break;
+			}
+			case 'paste': {
+				try {
+					const v = parseText(await navigator.clipboard.readText());
+					if (v) set(C.insert(s, v, den));
+				} catch {
+					/* clipboard blocked */
+				}
+				break;
+			}
+		}
+	}
+
 	const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 	const dimOf = (d: Dim) => (d === 0 ? '' : DIM_NAME[d]);
 </script>
 
 <svelte:head><title>A2 Calc</title></svelte:head>
+<svelte:window onkeydown={onKeydown} />
 
 <div class="screen" class:landscape>
 	<div class="left">
@@ -121,7 +181,9 @@
 			{#if shown?.rounded}<span class="approx" title="Rounded to {frac(1, den)}″">≈</span>{/if}{big}
 		</div>
 		<div class="meta">
-			{#if error}
+			{#if copied}
+				<span class="kind">Copied</span>
+			{:else if error}
 				<span class="error">{error}</span>
 			{:else if value && value.d > 0}
 				<span class="kind">{dimOf(value.d)}</span>
