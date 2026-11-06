@@ -97,7 +97,7 @@
 		{@render quickKey('cuft', 'ft³', 'Cubic feet')}
 		{@render unitKey('ft', '′', 'feet')}
 		{@render unitKey('in', '″', 'inch')}
-		{@render unitKey('frac', '⁄', 'fraction')}
+		{@render unitKey('frac', '/', 'fraction')}
 		{@render opKey('×')}
 
 		{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
@@ -129,7 +129,7 @@
 
 		{@render unitKey('ft', '′', 'feet')}
 		{@render unitKey('in', '″', 'inch')}
-		{@render unitKey('frac', '⁄', 'fraction')}
+		{@render unitKey('frac', '/', 'fraction')}
 		{@render opKey('×')}
 
 		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
@@ -142,7 +142,7 @@
 	<div class="pad input">
 		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render unitKey('ft', '′', 'feet')}
 		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render unitKey('in', '″', 'inch')}
-		{@render digit('1')}{@render digit('2')}{@render digit('3')}{@render unitKey('frac', '⁄', 'fraction')}
+		{@render digit('1')}{@render digit('2')}{@render digit('3')}{@render unitKey('frac', '/', 'fraction')}
 		{@render digit('.')}{@render digit('0')}
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={26} /></button>
 		<button class="key eq small" onclick={() => { tap(true); ondone?.(); }}>Done</button>

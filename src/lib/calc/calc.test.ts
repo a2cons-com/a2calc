@@ -26,10 +26,10 @@ describe('entry', () => {
 		expect(entryValue(type('42'))).toEqual({ v: 42, d: 0 });
 	});
 	it('formats as typed', () => {
-		expect(formatEntry(type(`5'3"1/2`))).toBe('5′ 3 1⁄2″');
+		expect(formatEntry(type(`5'3"1/2`))).toBe('5′ 3 1/2″');
 		expect(formatEntry(type("5'3"))).toBe('5′ 3');
-		expect(formatEntry(type(`5'3"1/`))).toBe('5′ 3 1⁄″');
-		expect(formatEntry(type('3/4'))).toBe('3⁄4');
+		expect(formatEntry(type(`5'3"1/`))).toBe('5′ 3 1/″');
+		expect(formatEntry(type('3/4'))).toBe('3/4');
 	});
 	it('refuses keys that make no sense', () => {
 		expect(canPress(emptyEntry(), 'ft')).toBe(false);
@@ -59,14 +59,14 @@ describe('entry', () => {
 
 describe('formatting', () => {
 	it('rounds to the precision and reduces', () => {
-		expect(formatFtIn(63.5, 16)).toBe('5′ 3 1⁄2″');
+		expect(formatFtIn(63.5, 16)).toBe('5′ 3 1/2″');
 		expect(formatFtIn(60, 16)).toBe('5′');
-		expect(formatFtIn(0.75, 16)).toBe('3⁄4″');
+		expect(formatFtIn(0.75, 16)).toBe('3/4″');
 		expect(formatFtIn(0, 16)).toBe('0″');
-		expect(formatFtIn(63.5, 16, true)).toBe('63 1⁄2″');
-		expect(formatFtIn(-14.25, 16)).toBe('−1′ 2 1⁄4″');
+		expect(formatFtIn(63.5, 16, true)).toBe('63 1/2″');
+		expect(formatFtIn(-14.25, 16)).toBe('−1′ 2 1/4″');
 		// 1/3" at 1/16 rounds to 5/16; 11.99" rounds up to a whole foot
-		expect(formatFtIn(1 / 3, 16)).toBe('5⁄16″');
+		expect(formatFtIn(1 / 3, 16)).toBe('5/16″');
 		expect(splitFtIn(1 / 3, 16).rounded).toBe(true);
 		expect(formatFtIn(11.99, 16)).toBe('1′');
 	});
@@ -113,8 +113,8 @@ describe('calculator', () => {
 	it('adds feet-inch-fractions and writes the tape', () => {
 		const s = keys(C.initialState(), `5'3"1/2+2'10"3/4=`);
 		expect(s.done).toEqual({ v: 98.25, d: 1 });
-		expect(formatAs(s.done!, 'ftin', 16).text).toBe('8′ 2 1⁄4″');
-		expect(s.tape[0].expr).toBe('5′ 3 1⁄2″ + 2′ 10 3⁄4″');
+		expect(formatAs(s.done!, 'ftin', 16).text).toBe('8′ 2 1/4″');
+		expect(s.tape[0].expr).toBe('5′ 3 1/2″ + 2′ 10 3/4″');
 	});
 	it('continues from a result', () => {
 		let s = keys(C.initialState(), `10'×12'=`);

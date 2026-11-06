@@ -145,7 +145,7 @@ export function entryValue(e: Entry): Quantity | null {
 	return { v: plain, d: 0 };
 }
 
-/** The entry for the display: 5′ 3 1⁄2″. */
+/** The entry for the display: 5′ 3 1/2″. */
 export function formatEntry(e: Entry): string {
 	if (e.raw === '') return e.unit ? UNITS[e.unit].label : '';
 	const p = parts(e.raw);
@@ -153,7 +153,7 @@ export function formatEntry(e: Entry): string {
 	if (p.feet !== null) out.push(`${p.feet}′`);
 	let inch = p.inches ?? '';
 	if (p.num !== null) {
-		const fracText = p.den !== null ? `${p.num}⁄${p.den}` : p.num;
+		const fracText = p.den !== null ? `${p.num}/${p.den}` : p.num;
 		inch = inch ? `${inch} ${fracText}` : fracText;
 	}
 	const closed = e.raw.includes('"');

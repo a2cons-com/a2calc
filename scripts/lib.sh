@@ -64,3 +64,19 @@ preflight_toolchain() {
 build_web() {
   (cd "$ROOT" && npm run --silent config && npm run --silent build && npx cap sync ios)
 }
+
+# Android toolchain: JDK 21 and the command-line SDK. Each shell starts
+# fresh, so take JAVA_HOME / ANDROID_HOME from the profile if unset.
+android_env() {
+  if [ -z "${ANDROID_HOME:-}" ] || [ -z "${JAVA_HOME:-}" ]; then
+    # shellcheck disable=SC1090
+    [ -f "$HOME/.zshrc" ] && . "$HOME/.zshrc" >/dev/null 2>&1 || true
+  fi
+  [ -n "${ANDROID_HOME:-}" ] || die "ANDROID_HOME is not set (Android command-line tools)"
+  command -v java >/dev/null 2>&1 || die "java (JDK 21) not found"
+  export ANDROID_HOME ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+}
+
+build_web_android() {
+  (cd "$ROOT" && npm run --silent config && npm run --silent build && npx cap sync android)
+}

@@ -27,8 +27,8 @@
 		<dl class="num">
 			<dt>5 ′</dt><dd>5′</dd>
 			<dt>5 ′ 3</dt><dd>5′ 3″</dd>
-			<dt>5 ′ 3 ″ 1 ⁄ 2</dt><dd>5′ 3 {frac(1, 2)}″</dd>
-			<dt>3 ⁄ 4 ″</dt><dd>{frac(3, 4)}″</dd>
+			<dt>5 ′ 3 ″ 1 / 2</dt><dd>5′ 3 {frac(1, 2)}″</dd>
+			<dt>3 / 4 ″</dt><dd>{frac(3, 4)}″</dd>
 			<dt>12.5 ′</dt><dd>12′ 6″</dd>
 		</dl>
 		<p>Nothing is worked out until you press =, so type the whole formula first. × and ÷ go before + and −; use ( ) to change that. Parentheses left open close at =.</p>

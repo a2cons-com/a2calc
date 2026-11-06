@@ -98,10 +98,12 @@ export function splitFtIn(totalIn: number, den: number, useFeet = true): FtIn {
 	return { neg: neg && ticks > 0, feet, inches: whole, num, den: d, rounded };
 }
 
-/** "1⁄2" with a real fraction slash so it never reads as division. */
-export const frac = (num: number, den: number) => `${num}⁄${den}`;
+/** "1/2". A plain slash: the fraction-slash character (U+2044) makes
+ *  some Android fonts draw half-formed super/subscript digits, and "/"
+ *  can't be mistaken for division, which is ÷. */
+export const frac = (num: number, den: number) => `${num}/${den}`;
 
-/** 5′ 3 1⁄2″ style. `inchesOnly` gives 63 1⁄2″. */
+/** 5′ 3 1/2″ style. `inchesOnly` gives 63 1/2″. */
 export function formatFtIn(totalIn: number, den: number, inchesOnly = false): string {
 	const p = splitFtIn(totalIn, den, !inchesOnly);
 	const parts: string[] = [];
