@@ -38,7 +38,7 @@ if [ "$RUN" = 1 ]; then
   BUNDLE_ID="$(app_config appId)"
   xcrun simctl boot "$SIM_ID" 2>/dev/null || true
   xcrun simctl bootstatus "$SIM_ID" -b >/dev/null
-  open -a Simulator
+  open -a Simulator 2>/dev/null || open "$(xcode-select -p)/Applications/Simulator.app" 2>/dev/null || true
   xcrun simctl install "$SIM_ID" "$APP"
   xcrun simctl terminate "$SIM_ID" "$BUNDLE_ID" 2>/dev/null || true
   xcrun simctl launch "$SIM_ID" "$BUNDLE_ID"
