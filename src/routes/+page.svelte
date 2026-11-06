@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as C from '$lib/calc/calculator';
-	import { formatAs, formatsFor, frac, PRECISIONS, UNITS, UNITS_BY_DIM, DIM_NAME, type UnitId, type Dim } from '$lib/calc/units';
+	import { formatAs, formatsFor, frac, nextFormat, PRECISIONS, UNITS, UNITS_BY_DIM, DIM_NAME, type LengthFormat, type UnitId, type Dim } from '$lib/calc/units';
 	import { calc, prefs } from '$lib/stores/app.svelte';
 	import { openParens } from '$lib/calc/expression';
 	import Keypad from '$lib/components/Keypad.svelte';
@@ -9,6 +9,7 @@
 	import AppMark from '$lib/components/AppMark.svelte';
 	import MenuButton from '$lib/components/MenuButton.svelte';
 	import { keyAction } from '$lib/keyboard';
+	import type { EntryKey } from '$lib/calc/entry';
 	import { copyText, plainText, tap } from '$lib/native';
 	import { parseText } from '$lib/calc/entry';
 	import { editor } from '$lib/stores/editor.svelte';
@@ -69,6 +70,33 @@
 	$effect(() => {
 		if (!powerOpen) powerKey = null;
 	});
+	/** After an answer, ′ and ″ change how it is shown: ′ feet-based
+	 *  (ft-in, decimal ft; sq ft, sq yd; cu ft, cu yd), ″ inch-based
+	 *  (fractional, decimal inches; sq in; cu in). A plain number becomes
+	 *  feet or inches. */
+	function resultKey(k: 'ft' | 'in') {
+		if (!s.done) return;
+		const d = s.done.d;
+		if (d === 0) {
+			set(C.unit(s, k));
+			prefs.fmt[1] = k === 'ft' ? 'ftin' : 'in';
+			return;
+		}
+		prefs.fmt[d as 1 | 2 | 3] = nextFormat(d as 1 | 2 | 3, k, fmt);
+	}
+	function pickFormat(f: LengthFormat) {
+		if (s.done && s.done.d > 0) prefs.fmt[s.done.d as 1 | 2 | 3] = f;
+		powerOpen = false;
+	}
+	function pickPlainUnit(u: UnitId) {
+		set(C.unit(s, u));
+		powerOpen = false;
+	}
+	function onKey(k: EntryKey) {
+		if (s.done && (k === 'ft' || k === 'in')) resultKey(k);
+		else set(C.key(s, k));
+	}
+
 	function pickPower(p: 1 | 2 | 3) {
 		if (powerKey) set(C.power(s, powerKey, p));
 		powerOpen = false;
@@ -133,7 +161,7 @@
 		e.preventDefault();
 		switch (a.kind) {
 			case 'entry':
-				set(C.key(s, a.key));
+				onKey(a.key);
 				break;
 			case 'slash':
 				set(C.canKey(s, 'frac') && !s.done ? C.key(s, 'frac') : C.op(s, '÷', den, fmt));
@@ -218,10 +246,10 @@
 			{:else if error}
 				<span class="error">{error}</span>
 			{:else if value}
-				<span class="kind">{value.d > 0 ? `${dimOf(value.d)} · ` : ''}tap to copy</span>
+				<span class="kind">{value.d > 0 ? `${dimOf(value.d)} · ${formatsFor(value.d).find((f) => f.id === fmt)?.label ?? ''} · ` : ''}tap to copy</span>
 			{/if}
 		</div>
-		{#if value && value.d > 0}
+		{#if value && value.d > 0 && landscape}
 			<div class="formats">
 				{#each formatsFor(value.d) as f (f.id)}
 					<button class="chip" class:on={fmt === f.id} onclick={() => (prefs.fmt[value.d as 1 | 2 | 3] = f.id)}>{f.label}</button>
@@ -268,9 +296,9 @@
 	<section class="keys">
 		<Keypad
 			mode="calc"
-			can={(k) => C.canKey(s, k)}
+			can={(k) => (!!s.done && (k === 'ft' || k === 'in')) || C.canKey(s, k)}
 			{unitEnabled}
-			onkey={(k) => set(C.key(s, k))}
+			onkey={onKey}
 			onback={() => set(C.back(s))}
 			onclear={() => set(C.clear(s))}
 			onop={(o) => set(C.op(s, o, den, fmt))}
@@ -320,8 +348,22 @@
 	{/each}
 </Sheet>
 
-<Sheet bind:open={powerOpen} title={powerKey === 'in' ? 'Inches' : 'Feet'}>
-	{#if C.canPower(s)}
+<Sheet bind:open={powerOpen} title={s.done ? 'Show the answer as' : powerKey === 'in' ? 'Inches' : 'Feet'}>
+	{#if s.done && s.done.d > 0}
+		<div class="fmt-list">
+			{#each formatsFor(s.done.d) as f (f.id)}
+				<button class="fmt" class:on={fmt === f.id} onclick={() => pickFormat(f.id)}>
+					<span>{f.name}</span><span class="num">{formatAs(s.done, f.id, den).text}</span>
+				</button>
+			{/each}
+		</div>
+	{:else if s.done}
+		<div class="fmt-list">
+			{#each ['ft', 'sqft', 'cuft', 'in', 'sqin', 'cuin'] as const as u (u)}
+				<button class="fmt" onclick={() => pickPlainUnit(u)}><span>{UNITS[u].name}</span><span class="num">{formatAs(s.done, 'ftin', den).text} {UNITS[u].label}</span></button>
+			{/each}
+		</div>
+	{:else if C.canPower(s)}
 		<div class="powers">
 			{#each [1, 2, 3] as const as p (p)}
 				<button class="power" onclick={() => pickPower(p)}>
@@ -484,6 +526,30 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		padding: 0 3px;
+	}
+	.fmt-list {
+		display: flex;
+		flex-direction: column;
+	}
+	.fmt {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
+		padding: 12px 8px;
+		border-radius: 12px;
+		font-weight: 600;
+		text-align: left;
+	}
+	.fmt + .fmt {
+		border-top: 1px solid var(--border);
+	}
+	.fmt.on {
+		background: var(--primary-soft);
+		color: var(--primary-text);
+	}
+	.fmt .num {
+		font-size: 1.1rem;
 	}
 	.powers {
 		display: grid;

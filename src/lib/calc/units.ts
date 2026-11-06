@@ -124,7 +124,9 @@ export function formatNumber(x: number, max = 4): string {
 	return s.replace('-', '−');
 }
 
-export type LengthFormat = 'ftin' | 'in' | UnitId;
+/** How a result is shown: feet-inch-fraction, fractional inches, decimal
+ *  inches, or any unit (decimal feet is the 'ft' unit). */
+export type LengthFormat = 'ftin' | 'in' | 'indec' | UnitId;
 
 export interface Formatted {
 	text: string;
@@ -135,6 +137,8 @@ export interface Formatted {
 /** A quantity in one unit or format. */
 export function formatAs(x: Quantity, fmt: LengthFormat, den: number): Formatted {
 	if (x.d === 0) return { text: formatNumber(x.v, 6), rounded: false };
+	if (fmt === 'indec' && x.d === 1) return { text: `${formatNumber(x.v, 4)}″`, rounded: false };
+	if (fmt === 'ft' && x.d === 1) return { text: `${formatNumber(x.v / 12, 4)}′`, rounded: false };
 	if (fmt === 'ftin' || (fmt === 'in' && x.d === 1)) {
 		if (x.d !== 1) return formatAs(x, defaultFormat(x.d), den);
 		const p = splitFtIn(x.v, den);
@@ -152,16 +156,34 @@ export function defaultFormat(d: Dim): LengthFormat {
 }
 
 /** The formats a result can be shown in, by dimension. */
-export function formatsFor(d: Dim): { id: LengthFormat; label: string }[] {
+export function formatsFor(d: Dim): { id: LengthFormat; label: string; name: string }[] {
 	if (d === 1)
 		return [
-			{ id: 'ftin', label: 'ft-in' },
-			{ id: 'in', label: 'in' },
-			{ id: 'ft', label: 'ft' },
-			{ id: 'yd', label: 'yd' },
-			{ id: 'm', label: 'm' },
-			{ id: 'mm', label: 'mm' }
+			{ id: 'ftin', label: 'ft-in', name: 'Feet and inches' },
+			{ id: 'ft', label: 'ft', name: 'Decimal feet' },
+			{ id: 'in', label: 'in', name: 'Inches with fractions' },
+			{ id: 'indec', label: 'in.dec', name: 'Decimal inches' },
+			{ id: 'yd', label: 'yd', name: 'Yards' },
+			{ id: 'm', label: 'm', name: 'Meters' },
+			{ id: 'cm', label: 'cm', name: 'Centimeters' },
+			{ id: 'mm', label: 'mm', name: 'Millimeters' }
 		];
-	if (d === 2 || d === 3) return UNITS_BY_DIM[d].map((id) => ({ id, label: UNITS[id].label }));
+	if (d === 2 || d === 3) return UNITS_BY_DIM[d].map((id) => ({ id, label: UNITS[id].label, name: UNITS[id].name }));
 	return [];
+}
+
+/** What the feet / inch keys step through for an answer of each kind:
+ *  ′ -> feet-based, ″ -> inch-based. */
+export const KEY_FORMATS: Record<1 | 2 | 3, { ft: LengthFormat[]; in: LengthFormat[] }> = {
+	1: { ft: ['ftin', 'ft'], in: ['in', 'indec'] },
+	2: { ft: ['sqft', 'sqyd'], in: ['sqin'] },
+	3: { ft: ['cuft', 'cuyd'], in: ['cuin'] }
+};
+
+/** The next format for a key: the first of its list, or the one after the
+ *  current one when already in it. */
+export function nextFormat(d: 1 | 2 | 3, key: 'ft' | 'in', current: LengthFormat): LengthFormat {
+	const list = KEY_FORMATS[d][key];
+	const i = list.indexOf(current);
+	return i < 0 ? list[0] : list[(i + 1) % list.length];
 }

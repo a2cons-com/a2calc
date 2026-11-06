@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canPress, emptyEntry, entryValue, formatEntry, parseText, press, backspace, type Entry, type EntryKey } from './entry';
 import { evaluate, CalcError } from './expression';
-import { formatAs, formatFtIn, fromUnit, toUnit, splitFtIn } from './units';
+import { formatAs, formatFtIn, fromUnit, nextFormat, toUnit, splitFtIn } from './units';
 import * as C from './calculator';
 
 const type = (keys: string): Entry => {
@@ -87,6 +87,17 @@ describe('formatting', () => {
 		expect(formatFtIn(1 / 3, 16)).toBe('5/16″');
 		expect(splitFtIn(1 / 3, 16).rounded).toBe(true);
 		expect(formatFtIn(11.99, 16)).toBe('1′');
+	});
+	it('shows lengths as decimal feet and decimal inches, and steps formats', () => {
+		expect(formatAs({ v: 98.25, d: 1 }, 'ft', 16).text).toBe('8.1875′');
+		expect(formatAs({ v: 98.25, d: 1 }, 'indec', 16).text).toBe('98.25″');
+		expect(formatAs({ v: 98.25, d: 1 }, 'in', 16).text).toBe('98 1/4″');
+		expect(nextFormat(1, 'ft', 'ftin')).toBe('ft');
+		expect(nextFormat(1, 'ft', 'ft')).toBe('ftin');
+		expect(nextFormat(1, 'in', 'ftin')).toBe('in');
+		expect(nextFormat(1, 'in', 'in')).toBe('indec');
+		expect(nextFormat(3, 'ft', 'cuft')).toBe('cuyd');
+		expect(nextFormat(2, 'in', 'sqft')).toBe('sqin');
 	});
 	it('converts units both ways', () => {
 		expect(toUnit(fromUnit(1, 'cuyd'), 'cuft')).toBeCloseTo(27);
