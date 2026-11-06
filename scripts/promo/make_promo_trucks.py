@@ -26,7 +26,7 @@ GROUND = 1470      # where the wheels touch
 
 # --- cartoon pieces --------------------------------------------------------------
 
-def truck(spin=0.0, sticker=False, sad=False, empty=False, flip=False):
+def truck(spin=0.0, sticker=False, sad=False, empty=False, flip=False, brand=False):
     """A concrete mixer truck facing left (right if flip), 620x380, drawn flat."""
     img = Image.new('RGBA', (620, 380), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -54,6 +54,10 @@ def truck(spin=0.0, sticker=False, sad=False, empty=False, flip=False):
     dd.ellipse([0, 10, 420, 230], outline=(120, 126, 122, 255), width=6)
     if empty:
         dd.text((120, 92), 'EMPTY', font=font(52), fill=RED + (255,))
+    if brand:   # "A2" on a white badge, over the stripes
+        dd.rounded_rectangle([140, 78, 280, 162], 22, fill=(255, 255, 255, 255), outline=GREEN + (255,), width=6)
+        f = font(64)
+        dd.text((210 - dd.textlength('A2', font=f) / 2, 82), 'A2', font=f, fill=GREEN + (255,))
     drum = drum.rotate(12, expand=True, resample=Image.BICUBIC)
     img.alpha_composite(drum, (190, 20))
     # chute at the back
@@ -261,7 +265,7 @@ def s_end(frame, t, d):
     # the right truck rolls in and parks
     roll = ease_out((t - 0.6) / 1.0)
     if t > 0.6:
-        put(frame, truck(spin=t * 1.5), mp.W / 2 + (1 - roll) * 900, 1640, 0.8)
+        put(frame, truck(spin=t * 1.5, brand=True), mp.W / 2 + (1 - roll) * 900, 1640, 0.8)
     if t > 2.0:
         k2 = ease_out((t - 2.0) / 0.5)
         f = font(44)
@@ -269,13 +273,43 @@ def s_end(frame, t, d):
         dr = ImageDraw.Draw(frame)
         tw = dr.textlength(txt, font=f)
         dr.text(((mp.W - tw) / 2, 1740 + (1 - k2) * 40), txt, font=f, fill=(255, 255, 255, int(230 * k2)))
+    # the plug, as the last line starts
+    if t > PLUG_AT:
+        caption(frame, 'USED DAILY AT A2 CONSTRUCTION', t - PLUG_AT, y=1180, size=44, box=GREEN, tilt=2)
+    if t > PLUG_AT + 1.6:
+        k3 = ease_out((t - PLUG_AT - 1.6) / 0.5)
+        f = font(40)
+        txt = 'A2 Construction  ·  a2cons.com'
+        dr = ImageDraw.Draw(frame)
+        tw = dr.textlength(txt, font=f)
+        dr.text(((mp.W - tw) / 2, 1805 + (1 - k3) * 40), txt, font=f, fill=(255, 255, 255, int(200 * k3)))
 
 
-mp.SCENES = [('vo01', s_two_trucks, 3.4), ('vo02', s_friday, 0), ('vo03', s_meet, 0), ('vo04', s_framing, 0),
-             ('vo05', s_window, 4.2), ('vo06', s_block, 0), ('vo07', s_calc, 0), ('vo08', s_free, 2.4), ('vo09', s_end, 0)]
+mp.SCENES = [('vo01', s_two_trucks, 3.2), ('vo02', s_friday, 0), ('vo03', s_meet, 0), ('vo04', s_framing, 0),
+             ('vo05', s_window, 4.0), ('vo06', s_block, 0), ('vo07', s_calc, 0), ('vo08', s_free, 2.3), ('vo09plug', s_end, 0)]
 mp.s_end = s_end          # make_promo's timeline holds the last scene by this name
-mp.END_HOLD = 0.7
+mp.END_HOLD = 0.3
 mp.LEAD, mp.GAP = 0.1, 0.12   # a snappier read than v1
 
+PLUG_AT = 3.0     # set from the clips in __main__
+PLUG_GAP = 0.2    # pause between "The right truck." and the plug
+
+
+def join_end_clips(vo):
+    """vo09 + a pause + vo10 -> vo09plug.wav; returns when vo10 starts."""
+    import wave
+    with wave.open(str(vo / 'vo09.wav')) as a, wave.open(str(vo / 'vo10.wav')) as b:
+        p = a.getparams()
+        first = a.readframes(a.getnframes())
+        rest = b.readframes(b.getnframes())
+    with wave.open(str(vo / 'vo09plug.wav'), 'wb') as o:
+        o.setparams(p)
+        o.writeframes(first + b'\0' * (int(PLUG_GAP * p.framerate) * p.sampwidth * p.nchannels) + rest)
+    return mp.LEAD + len(first) / (p.framerate * p.sampwidth * p.nchannels) + PLUG_GAP
+
+
 if __name__ == '__main__':
+    import sys
+    from pathlib import Path
+    PLUG_AT = join_end_clips(Path(sys.argv[sys.argv.index('--vo') + 1]))
     mp.main()
