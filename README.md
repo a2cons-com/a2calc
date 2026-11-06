@@ -50,6 +50,13 @@ sponsored or endorsed by any of them.
 
 © 2026 A2 Labs.
 
+## Support
+
+Questions, problems or ideas: email A2 Labs support at
+support@a2cons.com, or [open an issue](https://github.com/a2cons-com/a2calc/issues).
+The app is available on the App Store (iPhone, iPad and Mac) and Google
+Play as "A2 Takeoff Calc".
+
 ## Terms and privacy
 
 [Terms of Use](TERMS.md) (use at your own risk; no warranty) and
