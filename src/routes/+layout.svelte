@@ -79,7 +79,9 @@
 		<p class="by">by A2 Labs</p>
 		<p>Feet, inches and fractions; areas and volumes; quick concrete, block grout and stud wall takeoffs. Free, with no ads and no account.</p>
 		<p class="fine">
-			Check every number before you build or order with it. A2 Calc is an estimating aid: it is not engineering advice, and nothing it shows is a sealed or certified calculation.
+			Use at your own risk: A2 Calc is an estimating aid, not engineering advice, and nothing it shows is a sealed or certified calculation. Check every
+			number before you build, order or bid with it. By using the app you agree to the <a href="/terms" onclick={() => (disclaimer = false)}>Terms of Use</a>; it collects
+			nothing (<a href="/privacy" onclick={() => (disclaimer = false)}>Privacy Policy</a>).
 		</p>
 		<button class="btn solid" onclick={() => (disclaimer = false)}>Got it</button>
 	</div>
@@ -153,6 +155,10 @@
 		font-size: 0.85rem;
 		font-weight: 600;
 		color: var(--muted);
+	}
+	.welcome a {
+		color: var(--primary-text);
+		font-weight: 600;
 	}
 	.welcome .btn {
 		width: 100%;

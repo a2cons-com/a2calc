@@ -57,10 +57,15 @@
 		<label class="toggle"><span>Key clicks (haptics)</span><input type="checkbox" bind:checked={prefs.haptics} /></label>
 	</div>
 
-	<div class="section-title">Please note</div>
+	<div class="section-title">Use at your own risk</div>
 	<div class="card fine">
-		Check every number before you build or order with it. A2 Calc is an estimating aid: it is not engineering advice, and nothing it shows is a sealed or certified
-		calculation. Nothing you type leaves your phone.
+		A2 Calc is an estimating aid, provided free and as is. Check every number before you build, order or bid with it: it is not engineering advice,
+		nothing it shows is a sealed or certified calculation, and A2 Labs takes no responsibility for how its results are used. Nothing you type leaves
+		your phone.
+		<div class="docs">
+			<a href="/terms">Terms of Use</a>
+			<a href="/privacy">Privacy Policy</a>
+		</div>
 	</div>
 
 	<div class="section-title">Sources</div>
@@ -150,6 +155,15 @@
 	}
 	.legal p:last-child {
 		margin: 0;
+	}
+	.docs {
+		display: flex;
+		gap: 18px;
+		margin-top: 10px;
+	}
+	.docs a {
+		color: var(--primary-text);
+		font-weight: 600;
 	}
 	.link {
 		color: var(--primary-text);

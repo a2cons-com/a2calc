@@ -41,8 +41,9 @@ export const grout = persisted('grout', {
 	wastePct: 3,
 	pumpYd3: 0,
 	runs: [{ id: 5, length: 480, openings: [] }],
-	closed: false
-} as GroutInput & Required<Pick<GroutInput, 'runs' | 'closed'>>);
+	closed: false,
+	lintel: 'grout'
+} as GroutInput & Required<Pick<GroutInput, 'runs' | 'closed' | 'lintel'>>);
 
 export const wall = persisted('wall', {
 	member: '2x4',

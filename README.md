@@ -50,6 +50,13 @@ sponsored or endorsed by any of them.
 
 © 2026 A2 Labs.
 
+## Terms and privacy
+
+[Terms of Use](TERMS.md) (use at your own risk; no warranty) and
+[Privacy Policy](PRIVACY.md) (the app collects nothing). The app shows
+the same files on its Terms and Privacy screens, and the store listings
+link to them here.
+
 ## License
 
 The code is released under the [MIT License](LICENSE), © 2026 A2 Labs.

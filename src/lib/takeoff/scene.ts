@@ -7,7 +7,7 @@
 // runs down the screen), y up.
 
 import type { Opening, Role, RunFraming } from './framing';
-import { COURSE_IN, UNIT_IN, wallsGrout } from './grout';
+import { COURSE_IN, UNIT_IN, wallsGrout, type LintelKind } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
 
@@ -91,7 +91,7 @@ function cut(a: number, b: number, holes: [number, number][]): [number, number][
 	return out;
 }
 
-export function blockScene(plan: Plan, height: number, spacingIn: number, cellsPerCorner: number, closed: boolean, selected: number): Scene {
+export function blockScene(plan: Plan, height: number, spacingIn: number, cellsPerCorner: number, closed: boolean, lintel: LintelKind, selected: number): Scene {
 	const solids: Solid[] = [];
 	const t = plan.depth;
 	const joint = 0.375;
@@ -101,13 +101,16 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, cellsP
 		'block*': { color: '--cmu', opacity: 0.5, tint: SEL },
 		grout: { color: '--grout' },
 		lintel: { color: '--grout', tint: 0.15 },
+		poured: { color: '--concrete', edges: true, edge: '--concrete-side' },
 		glass: { color: '--opening-edge', opacity: 0.35 }
 	};
-	const grout = wallsGrout(plan.walls.map((w) => w.run), closed, height, spacingIn, cellsPerCorner);
+	const poured = lintel === 'poured';
+	const grout = wallsGrout(plan.walls.map((w) => w.run), closed, height, spacingIn, cellsPerCorner, lintel);
 	plan.walls.forEach((w, wi) => {
 		const on = w.run.id === selected && plan.walls.length > 1;
 		const g = grout[wi];
-		const holes = g.holes;
+		// Block is left out of openings, and of poured lintels.
+		const holes = poured ? [...g.holes, ...g.lintels.map((l) => [l.a, l.b, l.y0, l.y1] as [number, number, number, number])] : g.holes;
 		for (let k = 0; k < courses; k++) {
 			const y0 = k * COURSE_IN;
 			const y1 = y0 + COURSE_IN;
@@ -117,8 +120,9 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, cellsP
 					if (b - a > joint * 2) solids.push(onWall(w, a, b - a - joint, y0, COURSE_IN - joint, t / 2, t, on ? 'block*' : 'block'));
 		}
 		for (const c of g.columns) solids.push(onWall(w, c.x - COURSE_IN * 0.28, COURSE_IN * 0.56, c.y0, c.y1 - c.y0 - joint, t / 2, t * 0.6, 'grout'));
-		for (const l of g.lintels) solids.push(onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0 - joint, t / 2, t * 0.75, 'lintel'));
-		for (const [a, b, y0, y1] of holes) if (y0 > 0) solids.push(onWall(w, a, b - a, y0, y1 - y0, t / 2, 0.5, 'glass'));
+		for (const l of g.lintels)
+			solids.push(poured ? onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0, t / 2, t, 'poured') : onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0 - joint, t / 2, t * 0.75, 'lintel'));
+		for (const [a, b, y0, y1] of g.holes) if (y0 > 0) solids.push(onWall(w, a, b - a, y0, y1 - y0, t / 2, 0.5, 'glass'));
 	});
 	return { solids, mats };
 }

@@ -48,7 +48,13 @@ export interface GroutInput {
 	 *  totals replace lengthIn, corners, ends and openingsSf (wallTotals). */
 	runs?: Run[];
 	closed?: boolean;
+	/** Lintels over openings: lintel block filled with grout (in the grout
+	 *  order), or formed and poured with concrete (counted on their own,
+	 *  no grout or block there). Default grouted. */
+	lintel?: LintelKind;
 }
+
+export type LintelKind = 'grout' | 'poured';
 
 /** Block actually laid: a nominal width less the 3/8" joint. */
 export const actualWidth = (w: CmuWidth) => w - 0.375;
@@ -87,6 +93,8 @@ export interface GroutResult {
 	 *  them: part of netFt3, shown on its own. */
 	lintels: number;
 	lintelFt3: number;
+	/** Concrete for poured lintels, ft³ neat (not in the grout order). */
+	pouredFt3: number;
 }
 
 /** A lintel (bond beam) over a door or window: one course deep up to
@@ -112,9 +120,10 @@ export interface WallGrout {
  *  - every cell, when solid; else cells at the spacing,
  *  - the cell each side of every door and window, whatever the spacing,
  *  - `cellsPerCorner` cells at an end that turns a corner, one at a free end,
- *  - a lintel over each opening;
+ *  - a lintel over each opening (unless `poured`: then the lintel's cells
+ *    are concrete, not grout, and are left out of `cells`);
  *  never inside an opening (taken out to the block module). */
-export function wallGrout(run: Run, atStart: boolean, atEnd: boolean, heightIn: number, spacingIn: number, cellsPerCorner: number): WallGrout {
+export function wallGrout(run: Run, atStart: boolean, atEnd: boolean, heightIn: number, spacingIn: number, cellsPerCorner: number, poured = false): WallGrout {
 	const L = Math.max(0, run.length);
 	const n = Math.max(1, Math.round(L / COURSE_IN));
 	const courses = Math.max(1, Math.round(Math.max(COURSE_IN, heightIn) / COURSE_IN));
@@ -160,12 +169,10 @@ export function wallGrout(run: Run, atStart: boolean, atEnd: boolean, heightIn: 
 		let start: number | null = null;
 		for (let k = 0; k <= courses; k++) {
 			const y = k * COURSE_IN + COURSE_IN / 2;
-			const up = k < courses && cols.has(i) && !open(x, y);
-			if (k < courses && !open(x, y)) {
-				const lin = inLintel(x, y);
-				if (up || lin) cells++;
-				if (lin) lintelCells++;
-			}
+			const lin = k < courses && !open(x, y) && inLintel(x, y);
+			const up = k < courses && cols.has(i) && !open(x, y) && !(poured && lin);
+			if (lin) lintelCells++;
+			if (up || (lin && !poured)) cells++;
 			if (up && start === null) start = k * COURSE_IN;
 			if (!up && start !== null) {
 				columns.push({ x, y0: start, y1: k * COURSE_IN });
@@ -178,9 +185,9 @@ export function wallGrout(run: Run, atStart: boolean, atEnd: boolean, heightIn: 
 }
 
 /** wallGrout for each of the walls, knowing which ends turn corners. */
-export function wallsGrout(runs: Run[], closed: boolean, heightIn: number, spacingIn: number, cellsPerCorner: number): WallGrout[] {
+export function wallsGrout(runs: Run[], closed: boolean, heightIn: number, spacingIn: number, cellsPerCorner: number, lintel: LintelKind = 'grout'): WallGrout[] {
 	const shut = closed && runs.length > 2;
-	return runs.map((r, i) => wallGrout(r, i > 0 || shut, i < runs.length - 1 || shut, heightIn, spacingIn, cellsPerCorner));
+	return runs.map((r, i) => wallGrout(r, i > 0 || shut, i < runs.length - 1 || shut, heightIn, spacingIn, cellsPerCorner, lintel === 'poured'));
 }
 
 export function groutVolume(input: GroutInput): GroutResult {
@@ -191,12 +198,17 @@ export function groutVolume(input: GroutInput): GroutResult {
 	const heightFt = Math.max(0, i.heightIn) / 12;
 	let netFt3: number;
 	let cells: number | null = null;
-	const grid = input.runs ? wallsGrout(input.runs, !!input.closed, i.heightIn, i.spacingIn, i.cellsPerCorner) : null;
+	const grid = input.runs ? wallsGrout(input.runs, !!input.closed, i.heightIn, i.spacingIn, i.cellsPerCorner, input.lintel) : null;
+	const poured = !!grid && input.lintel === 'poured';
+	/** 8″ × 8″ cells of wall face taken by lintels. */
+	const lintelCells = grid ? grid.reduce((n, w) => n + w.lintelCells, 0) : 0;
 	/** Grout in one 8″ × 8″ cell. */
 	const cellFt3 = cellFt3PerFt(i.width) * (COURSE_IN / 12);
 	if (!i.spacingIn || i.spacingIn <= COURSE_IN) {
 		const area = Math.max(0, lengthFt * heightFt - Math.max(0, i.openingsSf));
 		netFt3 = area * (SOLID_FT3_PER_100SF[i.width] / 100 / (1 + TABLE_WASTE));
+		// A poured lintel is concrete where the grouted block would be.
+		if (poured) netFt3 = Math.max(0, netFt3 - lintelCells * cellFt3);
 	} else if (!grid) {
 		const spaced = netLengthIn > 0 ? Math.ceil(netLengthIn / i.spacingIn) : 0;
 		cells = spaced + Math.max(0, i.corners) * Math.max(0, i.cellsPerCorner) + Math.max(0, i.ends);
@@ -208,13 +220,16 @@ export function groutVolume(input: GroutInput): GroutResult {
 		netFt3 = grid.reduce((n, w) => n + w.cells, 0) * cellFt3;
 	}
 	const lintels = grid ? grid.reduce((n, w) => n + w.lintels.length, 0) : 0;
-	const lintelFt3 = grid ? grid.reduce((n, w) => n + w.lintelCells, 0) * cellFt3 : 0;
+	const lintelFt3 = poured ? 0 : lintelCells * cellFt3;
+	const lintelSf = (lintelCells * COURSE_IN * COURSE_IN) / 144;
+	const pouredFt3 = poured ? (lintelSf * actualWidth(i.width)) / 12 : 0;
 	const wasteFt3 = netFt3 * Math.max(0, i.wastePct) / 100;
 	const totalFt3 = netFt3 + wasteFt3 + Math.max(0, i.pumpYd3) * FT3_PER_YD3;
 	const totalYd3 = totalFt3 / FT3_PER_YD3;
 	// 1.125 units per sq ft of wall face (16" × 8" nominal).
-	const blocks = Math.ceil(Math.max(0, lengthFt * heightFt - Math.max(0, i.openingsSf)) * 1.125 - 1e-9);
-	return { netLengthIn, cells, netFt3, wasteFt3, totalFt3, totalYd3, orderYd3: roundUpQuarter(totalYd3), blocks, lintels, lintelFt3 };
+	// Poured lintels take the place of block.
+	const blocks = Math.ceil(Math.max(0, lengthFt * heightFt - Math.max(0, i.openingsSf) - (poured ? lintelSf : 0)) * 1.125 - 1e-9);
+	return { netLengthIn, cells, netFt3, wasteFt3, totalFt3, totalYd3, orderYd3: roundUpQuarter(totalYd3), blocks, lintels, lintelFt3, pouredFt3 };
 }
 
 /** Which 8" cell positions along a straight wall get grout (for the

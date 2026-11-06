@@ -38,6 +38,20 @@ describe('block walls drawn one by one', () => {
 		// for the top course; the lintel adds 4 cells not in a line.
 		expect(g.cells).toBe(6 * 12 + 1 + 4);
 	});
+	it('takes a poured lintel out of the grout and the block', () => {
+		const run: Run = { id: 1, length: 192, openings: [door(2, 72)] };
+		const base = { width: 8 as const, lengthIn: 0, outside: false, heightIn: 96, spacingIn: 48, corners: 0, ends: 0, cellsPerCorner: 1, openingsSf: 0, wastePct: 0, pumpYd3: 0, runs: [run], closed: false };
+		const grouted = groutVolume({ ...base, lintel: 'grout' });
+		const poured = groutVolume({ ...base, lintel: 'poured' });
+		// Six full lines of 12 courses, less the top cell of the two jamb
+		// lines that now sits in concrete; nothing over the door.
+		expect(wallGrout(run, false, false, 96, 48, 1, true).cells).toBe(6 * 12 - 2);
+		expect(poured.lintelFt3).toBe(0);
+		expect(poured.netFt3).toBeLessThan(grouted.netFt3);
+		// 56″ x 8″ of lintel face, 7-5/8″ thick.
+		expect(poured.pouredFt3).toBeCloseTo((56 * 8 * 7.625) / 1728);
+		expect(poured.blocks).toBeLessThan(grouted.blocks);
+	});
 	it('counts a wide opening\'s lintel two courses deep', () => {
 		const win = { id: 2, kind: 'window' as const, width: 96, height: 48, sill: 32, offset: 48, header: '' };
 		const g = wallGrout({ id: 1, length: 240, openings: [win] }, false, false, 120, 0, 1);
@@ -54,8 +68,8 @@ describe('3D scenes', () => {
 	});
 	it('leaves a door out of the block courses', () => {
 		const run: Run = { id: 1, length: 96, openings: [] };
-		const plain = blockScene(planWalls([run], 7.625, false), 96, 0, 1, false, 1).solids.filter((s) => s.mat === 'block').length;
-		const withDoor = blockScene(planWalls([{ ...run, openings: [door(2)] }], 7.625, false), 96, 0, 1, false, 1).solids.filter((s) => s.mat === 'block');
+		const plain = blockScene(planWalls([run], 7.625, false), 96, 0, 1, false, 'grout', 1).solids.filter((s) => s.mat === 'block').length;
+		const withDoor = blockScene(planWalls([{ ...run, openings: [door(2)] }], 7.625, false), 96, 0, 1, false, 'grout', 1).solids.filter((s) => s.mat === 'block');
 		expect(plain).toBe(6 * 6 + 6 * 7);
 		expect(withDoor.length).toBeLessThan(plain);
 	});

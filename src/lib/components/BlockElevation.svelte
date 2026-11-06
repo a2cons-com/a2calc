@@ -14,6 +14,7 @@
 		height,
 		spacingIn,
 		grout,
+		poured = false,
 		onmove,
 		range
 	}: {
@@ -21,6 +22,8 @@
 		height: number;
 		spacingIn: number;
 		grout: WallGrout;
+		/** Lintels formed and poured: concrete in place of block. */
+		poured?: boolean;
 		onmove?: (id: number, offset: number) => void;
 		range?: (id: number) => [number, number];
 	} = $props();
@@ -39,7 +42,8 @@
 	/** [left, right] minus the openings that cross the band [y0, y1]. */
 	function cut(a: number, b: number, y0: number, y1: number): [number, number][] {
 		let out: [number, number][] = [[a, b]];
-		for (const [h0, h1, hb, ht] of holes) {
+		const gone = poured ? [...holes, ...grout.lintels.map((l) => [l.a, l.b, l.y0, l.y1] as const)] : holes;
+		for (const [h0, h1, hb, ht] of gone) {
 			if (hb >= y1 - 0.01 || ht <= y0 + 0.01) continue;
 			out = out.flatMap(([x0, x1]) => (h1 <= x0 || h0 >= x1 ? [[x0, x1]] : ([[x0, Math.min(x1, h0)], [Math.max(x0, h1), x1]] as [number, number][]).filter(([p, q]) => q - p > 0.5)));
 		}
@@ -72,8 +76,8 @@
 			<rect x={c.x - COURSE_IN * 0.28} y={y(c.y0, c.y1 - c.y0)} width={COURSE_IN * 0.56} height={c.y1 - c.y0} fill="var(--grout)" opacity={solid ? 0.55 : 0.85} rx={sw * 2} />
 		{/each}
 		{#each grout.lintels as l, i (i)}
-			<rect x={l.a} y={y(l.y0, l.y1 - l.y0)} width={l.b - l.a} height={l.y1 - l.y0} fill="var(--grout)" opacity="0.75" stroke="var(--primary)" stroke-width={sw * 1.5} />
-			<text x={(l.a + l.b) / 2} y={y(l.y0, (l.y1 - l.y0) / 2)} font-size={Math.min(fs * 0.8, (l.y1 - l.y0) * 0.7)} class="lintel" text-anchor="middle" dominant-baseline="central">Lintel</text>
+			<rect x={l.a} y={y(l.y0, l.y1 - l.y0)} width={l.b - l.a} height={l.y1 - l.y0} fill={poured ? 'var(--concrete)' : 'var(--grout)'} opacity={poured ? 1 : 0.75} stroke="var(--primary)" stroke-width={sw * 1.5} />
+			<text x={(l.a + l.b) / 2} y={y(l.y0, (l.y1 - l.y0) / 2)} font-size={Math.min(fs * 0.8, (l.y1 - l.y0) * 0.7)} class="lintel" class:poured text-anchor="middle" dominant-baseline="central">{poured ? 'Poured lintel' : 'Lintel'}</text>
 		{/each}
 		<OpeningHandles {handles} floor={H} {fs} {s} {onmove} {range} />
 		<line x1="0" x2={L} y1={H + pad} y2={H + pad} stroke="var(--faint)" stroke-width={sw} />
@@ -98,6 +102,9 @@
 		font-family: var(--font);
 		font-weight: 700;
 		fill: var(--surface);
+	}
+	.lintel.poured {
+		fill: var(--primary-text);
 	}
 	.dim {
 		font-family: var(--font-num);
