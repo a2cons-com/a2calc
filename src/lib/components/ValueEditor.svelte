@@ -43,7 +43,7 @@
 		if (req && typed !== null && !problem) req.set(typed);
 		open = false;
 	}
-	const can = (k: EntryKey) => canPress(entry, k) && !(req?.integer && (k === '.' || k === 'frac'));
+	const can = (k: EntryKey) => canPress(entry, k, false) && !(req?.integer && (k === '.' || k === 'frac'));
 
 	// Typing into a field: digits, ' " / . Backspace, Enter = Done, Esc = cancel.
 	function onKeydown(e: KeyboardEvent) {
@@ -52,7 +52,7 @@
 		const k: EntryKey | undefined = /^[0-9]$/.test(e.key) ? (e.key as EntryKey) : map[e.key];
 		if (k) {
 			e.preventDefault();
-			if (can(k) && (req.kind === 'length' || (k !== 'ft' && k !== 'in'))) entry = press(entry, k);
+			if (can(k) && (req.kind === 'length' || (k !== 'ft' && k !== 'in'))) entry = press(entry, k, false);
 		} else if (e.key === 'Backspace') {
 			e.preventDefault();
 			entry = backspace(entry);
@@ -92,7 +92,7 @@
 			</div>
 		</div>
 		<div class="pad">
-			<Keypad mode="input" {can} allowLength={req.kind === 'length'} onkey={(k) => (entry = press(entry, k))} onback={() => (entry = backspace(entry))} ondone={done} />
+			<Keypad mode="input" {can} allowLength={req.kind === 'length'} onkey={(k) => (entry = press(entry, k, false))} onback={() => (entry = backspace(entry))} ondone={done} />
 		</div>
 	</div>
 	{/if}

@@ -1,7 +1,7 @@
 // The basic calculator's state machine, kept free of UI so it can be
 // tested: keys go in, the expression / live result / tape come out.
 
-import { backspace, canPress, emptyEntry, entryValue, isEmpty, press, type Entry, type EntryKey } from './entry';
+import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, press, withPower, type Entry, type EntryKey } from './entry';
 import { CalcError, evaluate, openParens, tokensText, tokenText, type Op, type Token } from './expression';
 import { formatAs, defaultFormat, fromUnit, UNITS, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
@@ -89,6 +89,21 @@ export function paren(s: CalcState, p: '(' | ')', den: number, fmt?: LengthForma
 	if (hasOperand(s)) tokens.push({ kind: 'op', op: '×' });
 	else tokens.pop(); // the empty entry
 	return { ...s, tokens: [...tokens, { kind: 'paren', p: '(' }, { kind: 'entry', entry: emptyEntry() }], error: null };
+}
+
+/** Long-press on the feet or inch key: the current number as that unit,
+ *  its square or its cube. */
+export function canPower(s: CalcState): boolean {
+	if (s.done) return false;
+	const e = current(s);
+	return !!e && canSetPower(e);
+}
+
+export function power(s: CalcState, key: 'ft' | 'in', p: 1 | 2 | 3): CalcState {
+	if (s.done) return s;
+	const e = current(s);
+	const next = e && withPower(e, key, p);
+	return next ? setCurrent(s, next) : s;
 }
 
 /** Tag the current entry with a unit (sq ft, cu yd, m...), or give a

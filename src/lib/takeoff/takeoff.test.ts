@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { concreteOrder, pieceIn3, roundUpQuarter, type Piece } from './concrete';
 import { groutVolume, groutedCells } from './grout';
-import { frameWall, layout, type WallInput } from './framing';
+import { frameWall, freeSpot, layout, moveRange, type WallInput } from './framing';
 
 describe('concrete', () => {
 	it('computes a slab and rounds the order up to the quarter yard', () => {
@@ -86,5 +86,27 @@ describe('framing', () => {
 	it('warns when a header hits the top plate', () => {
 		const r = frameWall(wall({ runs: [{ id: 1, length: 120, openings: [{ id: 1, kind: 'door', width: 36, height: 88, sill: 0, offset: null, header: '2x12' }] }] }));
 		expect(r.warnings.join()).toMatch(/top plate/);
+	});
+	it('places a new opening in free wall, or lengthens the wall', () => {
+		const door = { id: 1, kind: 'door' as const, width: 38, height: 82.5, sill: 0, offset: 10, header: '2x10' };
+		// 16' wall with a door at 10": the window goes in the free stretch past it
+		const run = { id: 1, length: 192, openings: [door] };
+		const spot = freeSpot(run, 36, 97.125);
+		expect(spot.length).toBe(192);
+		expect(spot.offset).toBeGreaterThanOrEqual(10 + 38 + 12);
+		expect(spot.offset + 36).toBeLessThanOrEqual(192 - 6);
+		// 6' wall already holding the door: no room, so the wall grows
+		const short = { id: 2, length: 72, openings: [{ ...door, offset: 17 }] };
+		const grown = freeSpot(short, 36, 97.125);
+		expect(grown.offset).toBe(17 + 38 + 12);
+		expect(grown.length).toBe(17 + 38 + 12 + 36 + 6);
+	});
+	it('limits dragging to a foot from neighbours and 6 inches from the ends', () => {
+		const run = { id: 1, length: 240, openings: [
+			{ id: 1, kind: 'door' as const, width: 38, height: 82.5, sill: 0, offset: 20, header: '2x10' },
+			{ id: 2, kind: 'window' as const, width: 36, height: 48, sill: 36, offset: 150, header: '2x10' }
+		] };
+		expect(moveRange(run, 1, 97.125)).toEqual([6, 150 - 12 - 38]);
+		expect(moveRange(run, 2, 97.125)).toEqual([20 + 38 + 12, 240 - 6 - 36]);
 	});
 });

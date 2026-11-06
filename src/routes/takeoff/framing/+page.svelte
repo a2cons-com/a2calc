@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatFtIn, formatNumber } from '$lib/calc/units';
-	import { frameWall, HEADER_SIZES, PRECUTS, SPACINGS, STUD_SIZES, type Opening, type Run } from '$lib/takeoff/framing';
+	import { frameWall, freeSpot, moveRange, place, HEADER_SIZES, PRECUTS, SPACINGS, STUD_SIZES, type Opening, type Run } from '$lib/takeoff/framing';
 	import { prefs, wall as st, newId } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
@@ -20,12 +20,23 @@
 	function addRun() {
 		st.runs.push({ id: newId(), length: 120, openings: [] });
 	}
+	/** A new door or window goes in the largest free stretch of wall, a
+	 *  foot from the others; the wall grows when there is no room. */
 	function addOpening(run: Run, kind: Opening['kind']) {
+		const width = kind === 'door' ? 38 : 36;
+		// Pin centered openings where they are, so a longer wall can't shift them.
+		for (const p of place(run, st.height)) if (p.o.offset === null) p.o.offset = Math.round(p.a);
+		const spot = freeSpot(run, width, st.height);
+		if (spot.length > run.length) run.length = spot.length;
 		run.openings.push(
 			kind === 'door'
-				? { id: newId(), kind, width: 38, height: 82.5, sill: 0, offset: null, header: '2x10' }
-				: { id: newId(), kind, width: 36, height: 48, sill: 36, offset: null, header: '2x10' }
+				? { id: newId(), kind, width, height: 82.5, sill: 0, offset: spot.offset, header: '2x10' }
+				: { id: newId(), kind, width, height: 48, sill: 36, offset: spot.offset, header: '2x10' }
 		);
+	}
+	function moveOpening(run: Run, id: number, offset: number) {
+		const o = run.openings.find((x) => x.id === id);
+		if (o) o.offset = offset;
 	}
 	const ROLE_NAME: Record<string, string> = {
 		stud: 'Studs', corner: 'Corner backers', king: 'King studs', jack: 'Jack studs', cripple: 'Cripples',
@@ -93,7 +104,10 @@
 			{/if}
 		</div>
 		<div class="card run">
-			{#if rf}<WallElevation {rf} height={st.height} />{/if}
+			{#if rf}
+				<WallElevation {rf} height={st.height} onmove={(id, a) => moveOpening(run, id, a)} range={(id) => moveRange(run, id, st.height)} />
+				{#if run.openings.length}<p class="fine hint">Drag a door or window along the wall to move it.</p>{/if}
+			{/if}
 			<Field label="Length" bind:value={run.length} bare="ft" min={12} max={2400} />
 			{#each run.openings as o, j (o.id)}
 				<div class="opening">
@@ -213,6 +227,10 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+	.hint {
+		margin: -4px 0 0;
+		text-align: center;
 	}
 	.run :global(.field) {
 		background: var(--bg);

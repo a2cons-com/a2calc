@@ -36,8 +36,53 @@ function tail(raw: string): string {
 	return m ? m[0] : '';
 }
 
-/** Whether `key` makes sense right now; the keypad greys out the rest. */
-export function canPress(e: Entry, key: EntryKey): boolean {
+// Unit cycling: pressing the feet key again turns a feet-only number into
+// square feet, again into cubic feet, again back to feet (5′ -> 5 sq ft ->
+// 5 cu ft -> 5′); the inch key does the same with inches. A plain number
+// with a fraction counts (3/4″ -> 3/4 sq in).
+const FEET_ONLY = /^[\d.]+'$/;
+const INCH_ONLY = /^(?:[\d.]+|\d+\/\d+)"$/;
+const PLAIN = /^(?:[\d.]*\d[\d.]*|\d+\/\d+)$/;
+const CYCLE: Record<'ft' | 'in', { mark: string; only: RegExp; sq: UnitId; cu: UnitId }> = {
+	ft: { mark: "'", only: FEET_ONLY, sq: 'sqft', cu: 'cuft' },
+	in: { mark: '"', only: INCH_ONLY, sq: 'sqin', cu: 'cuin' }
+};
+
+function cycled(e: Entry, key: 'ft' | 'in'): Entry | null {
+	const c = CYCLE[key];
+	if (e.unit === null && c.only.test(e.raw)) return { raw: e.raw.slice(0, -1), unit: c.sq };
+	if (e.unit === c.sq) return { ...e, unit: c.cu };
+	if (e.unit === c.cu) return { raw: e.raw + c.mark, unit: null };
+	return null;
+}
+
+/** The number of an entry that is just one value of feet or inches (any
+ *  power), or a plain number; null otherwise (5′ 3″, a metric tag...). */
+function baseNumber(e: Entry): string | null {
+	if (e.unit === null) {
+		if (PLAIN.test(e.raw)) return e.raw;
+		if (FEET_ONLY.test(e.raw) || INCH_ONLY.test(e.raw)) return e.raw.slice(0, -1);
+		return null;
+	}
+	return ['sqft', 'cuft', 'sqin', 'cuin'].includes(e.unit) && PLAIN.test(e.raw) ? e.raw : null;
+}
+
+/** Long-press choice: make the entry feet / inches, square or cubic. */
+export function withPower(e: Entry, key: 'ft' | 'in', power: 1 | 2 | 3): Entry | null {
+	const n = baseNumber(e);
+	if (n === null) return null;
+	const c = CYCLE[key];
+	if (power === 1) return { raw: n + c.mark, unit: null };
+	return { raw: n, unit: power === 2 ? c.sq : c.cu };
+}
+
+export const canSetPower = (e: Entry) => baseNumber(e) !== null;
+
+/** Whether `key` makes sense right now; the keypad greys out the rest.
+ *  `cycle`: whether the feet/inch keys may turn the value into an area or
+ *  a volume (not in fields that hold a length). */
+export function canPress(e: Entry, key: EntryKey, cycle = true): boolean {
+	if (cycle && (key === 'ft' || key === 'in') && cycled(e, key)) return true;
 	const r = e.raw;
 	const t = tail(r);
 	const hasFt = r.includes("'");
@@ -67,8 +112,12 @@ export function canPress(e: Entry, key: EntryKey): boolean {
 	return false;
 }
 
-export function press(e: Entry, key: EntryKey): Entry {
-	if (!canPress(e, key)) return e;
+export function press(e: Entry, key: EntryKey, cycle = true): Entry {
+	if (cycle && (key === 'ft' || key === 'in')) {
+		const next = cycled(e, key);
+		if (next) return next;
+	}
+	if (!canPress(e, key, false)) return e;
 	const ch = key === 'ft' ? "'" : key === 'in' ? '"' : key === 'frac' ? '/' : key;
 	let raw = e.raw;
 	if (key === '.' && (raw === '' || /['"]$/.test(raw))) raw += '0';

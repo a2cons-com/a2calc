@@ -283,3 +283,47 @@ export function buyList(members: Member[], stud: number, stock: number, wastePct
 		.map((l) => ({ ...l, count: Math.ceil(l.count * (1 + extra) - 1e-9) }))
 		.sort((p, q) => p.size.localeCompare(q.size, 'en', { numeric: true }) || (q.precut ?? 0) - (p.precut ?? 0) || q.feet - p.feet);
 }
+
+/** Clear wall between rough openings, and from an opening to a wall end
+ *  (room for the king, jack and end stud), inches. */
+export const OPENING_GAP = 12;
+export const END_GAP = 6;
+
+/** Where a new opening of `width` goes on a run: centered in the largest
+ *  free stretch, a foot clear of other openings and 6″ from the ends. When
+ *  nothing fits, the run is lengthened and the opening goes past the last
+ *  one. Returns the offset of its left edge and the run's length. */
+export function freeSpot(run: Run, width: number, wallHeight: number): { offset: number; length: number } {
+	const taken = place(run, wallHeight)
+		.map((p) => [p.a, p.b] as const)
+		.sort((x, y) => x[0] - y[0]);
+	let best: { from: number; to: number } | null = null;
+	let from = END_GAP;
+	for (const [a, b] of taken) {
+		const to = a - OPENING_GAP;
+		if (to - from >= width && (!best || to - from > best.to - best.from)) best = { from, to };
+		from = Math.max(from, b + OPENING_GAP);
+	}
+	const end = run.length - END_GAP;
+	if (end - from >= width && (!best || end - from > best.to - best.from)) best = { from, to: end };
+	if (best) return { offset: Math.round(best.from + (best.to - best.from - width) / 2), length: run.length };
+	const last = taken.length ? taken[taken.length - 1][1] + OPENING_GAP : END_GAP;
+	return { offset: last, length: Math.ceil(last + width + END_GAP) };
+}
+
+/** How far an opening may move: between its neighbours (a foot clear) and
+ *  the wall ends (6″ clear). Returns [min, max] for its left edge. */
+export function moveRange(run: Run, id: number, wallHeight: number): [number, number] {
+	const placed = place(run, wallHeight);
+	const me = placed.find((p) => p.o.id === id);
+	if (!me) return [0, 0];
+	const width = me.b - me.a;
+	let lo = END_GAP;
+	let hi = run.length - END_GAP - width;
+	for (const p of placed) {
+		if (p.o.id === id) continue;
+		if (p.a + p.b <= me.a + me.b) lo = Math.max(lo, p.b + OPENING_GAP);
+		else hi = Math.min(hi, p.a - OPENING_GAP - width);
+	}
+	return hi >= lo ? [lo, hi] : [Math.max(0, Math.min(me.a, run.length - width)), Math.max(0, Math.min(me.a, run.length - width))];
+}

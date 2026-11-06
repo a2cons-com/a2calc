@@ -58,6 +58,20 @@
 	// Memory bar: tap a stored letter to use it; tap an empty one to store
 	// the answer (or the formula's value); hold one for the memory sheet.
 	let memOpen = $state(false);
+
+	// Long-press on ′ or ″: the number as that unit, squared or cubed.
+	let powerKey = $state<'ft' | 'in' | null>(null);
+	let powerOpen = $state(false);
+	$effect(() => {
+		if (powerKey) powerOpen = true;
+	});
+	$effect(() => {
+		if (!powerOpen) powerKey = null;
+	});
+	function pickPower(p: 1 | 2 | 3) {
+		if (powerKey) set(C.power(s, powerKey, p));
+		powerOpen = false;
+	}
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
 	let held = false;
 	function memDown() {
@@ -179,9 +193,6 @@
 		<AppMark size={28} />
 		<span class="title">A2 Calc</span>
 		<span class="spacer"></span>
-		{#if landscape}
-			<button class="pill" disabled={!unitEnabled} onclick={() => (unitOpen = true)}>Unit</button>
-		{/if}
 		<button class="pill" onclick={() => (memOpen = true)} aria-label="Memory">M</button>
 		<button class="pill" onclick={() => (precOpen = true)} aria-label="Fraction precision">
 			<span class="num">{frac(1, den)}″</span>
@@ -263,7 +274,7 @@
 			onunit={() => (unitOpen = true)}
 			wide={landscape}
 			{onfn}
-			onquick={pickUnit}
+			onlong={(k) => (powerKey = k)}
 		/>
 	</section>
 </div>
@@ -301,6 +312,22 @@
 			{/each}
 		</div>
 	{/each}
+</Sheet>
+
+<Sheet bind:open={powerOpen} title={powerKey === 'in' ? 'Inches' : 'Feet'}>
+	{#if C.canPower(s)}
+		<div class="powers">
+			{#each [1, 2, 3] as const as p (p)}
+				<button class="power" onclick={() => pickPower(p)}>
+					<span class="num pw">{powerKey === 'in' ? 'in' : 'ft'}{p === 2 ? '²' : p === 3 ? '³' : ''}</span>
+					<span class="pl">{p === 1 ? (powerKey === 'in' ? 'Inches' : 'Feet') : p === 2 ? 'Square' : 'Cubic'}</span>
+				</button>
+			{/each}
+		</div>
+		<p class="fine">Tip: tapping the key again does the same: once {powerKey === 'in' ? 'in' : 'ft'}, twice square, three times cubic.</p>
+	{:else}
+		<p class="fine">Type a number first, then hold the key to make it {powerKey === 'in' ? 'inches' : 'feet'}, square or cubic.</p>
+	{/if}
 </Sheet>
 
 <Sheet bind:open={memOpen} title="Memory">
@@ -431,6 +458,31 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		padding: 0 3px;
+	}
+	.powers {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 10px;
+		margin-bottom: 12px;
+	}
+	.power {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+		padding: 16px 8px;
+		border-radius: 16px;
+		background: var(--key-unit);
+		color: var(--primary-text);
+	}
+	.pw {
+		font-size: 1.6rem;
+		font-weight: 650;
+	}
+	.pl {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--muted);
 	}
 	.mem-list {
 		list-style: none;

@@ -33,13 +33,31 @@ describe('entry', () => {
 	});
 	it('refuses keys that make no sense', () => {
 		expect(canPress(emptyEntry(), 'ft')).toBe(false);
-		expect(canPress(type("5'"), 'ft')).toBe(false);
+		expect(canPress(type("5'"), 'ft')).toBe(true); // cycles to sq ft
+		expect(canPress(type("5'"), 'ft', false)).toBe(false);
 		expect(canPress(type('3/'), 'in')).toBe(false);
 		expect(canPress(type('3/4'), 'in')).toBe(true);
 		expect(canPress(type('3/4'), 'frac')).toBe(false);
 		expect(canPress(type('3.5'), 'frac')).toBe(false);
 		expect(canPress(type(`3"`), '.')).toBe(false);
 		expect(canPress(type(`3/4"`), '5')).toBe(false);
+	});
+	it('cycles feet and inches through square and cubic', () => {
+		let e = type("5'");
+		e = press(e, 'ft');
+		expect(entryValue(e)).toEqual({ v: 5 * 144, d: 2 });
+		expect(formatEntry(e)).toBe('5 sq ft');
+		e = press(e, 'ft');
+		expect(entryValue(e)).toEqual({ v: 5 * 1728, d: 3 });
+		e = press(e, 'ft');
+		expect(entryValue(e)).toEqual({ v: 60, d: 1 });
+		let i = press(type('3/4"'), 'in');
+		expect(entryValue(i)).toEqual({ v: 0.75, d: 2 });
+		i = press(i, 'in');
+		expect(formatEntry(i)).toBe('3/4 cu in');
+		// feet and inches together don't cycle; a length field doesn't either
+		expect(canPress(type(`5'3"`), 'ft')).toBe(false);
+		expect(press(type("5'"), 'ft', false).raw).toBe("5'");
 	});
 	it('backspaces one keystroke', () => {
 		expect(backspace(type(`5'3"`)).raw).toBe("5'3");
@@ -208,6 +226,15 @@ describe('calculator', () => {
 		const g = C.storeVar(keys(C.initialState(), `1'+1'`), 'C');
 		expect(g.vars?.C).toEqual({ v: 24, d: 1 });
 		expect(C.clear(g).vars?.C).toEqual({ v: 24, d: 1 });
+	});
+	it('sets a power from the long-press menu', () => {
+		let s = keys(C.initialState(), '12');
+		expect(C.canPower(s)).toBe(true);
+		s = C.power(s, 'ft', 3);
+		expect(toUnit(C.equals(s).done!, 'cuft')).toBeCloseTo(12);
+		s = C.power(keys(C.initialState(), `4'`), 'in', 2);
+		expect(C.equals(s).done).toEqual({ v: 4, d: 2 });
+		expect(C.canPower(keys(C.initialState(), `5'3`))).toBe(false);
 	});
 	it('cubes a length into a volume', () => {
 		const s = C.equals(C.fn(keys(C.initialState(), `3'`), 'cube', 16));

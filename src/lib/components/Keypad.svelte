@@ -22,7 +22,7 @@
 		onunit,
 		ondone,
 		onfn,
-		onquick,
+		onlong,
 		onparen,
 		canParen = () => true,
 		wide = false,
@@ -38,17 +38,38 @@
 		onequals?: () => void;
 		onunit?: () => void;
 		ondone?: () => void;
-		/** Landscape: the quick units and x² x³ √ as a column on the left. */
+		/** Landscape: Unit, x² x³ √ π ± as a column on the left. */
 		onfn?: (f: Fx) => void;
-		/** One-tap unit tags for the number just typed (5 then ft³). */
-		onquick?: (u: 'sqft' | 'cuft' | 'cuyd') => void;
+		/** Long-press on the feet or inch key: pick linear, square or cubic. */
+		onlong?: (key: 'ft' | 'in') => void;
 		onparen?: (p: '(' | ')') => void;
 		canParen?: (p: '(' | ')') => boolean;
 		wide?: boolean;
 		unitEnabled?: boolean;
 	} = $props();
 
+	// A long press on ′ or ″ opens the linear / square / cubic choice; the
+	// click that follows it is swallowed.
+	let holdTimer: ReturnType<typeof setTimeout> | null = null;
+	let held = false;
+	function holdStart(key: EntryKey) {
+		held = false;
+		if (!onlong || (key !== 'ft' && key !== 'in')) return;
+		holdTimer = setTimeout(() => {
+			held = true;
+			tap(true);
+			onlong(key);
+		}, 450);
+	}
+	function holdEnd() {
+		if (holdTimer) clearTimeout(holdTimer);
+		holdTimer = null;
+	}
 	const k = (key: EntryKey) => () => {
+		if (held) {
+			held = false;
+			return;
+		}
 		tap();
 		onkey(key);
 	};
@@ -59,7 +80,17 @@
 	<button class="key digit {cls}" disabled={!enabled(d)} onclick={k(d)}>{d === '.' ? '.' : d}</button>
 {/snippet}
 {#snippet unitKey(key: EntryKey, glyph: string, cap: string)}
-	<button class="key unit" disabled={!enabled(key)} onclick={k(key)} aria-label={cap}>
+	<button
+		class="key unit"
+		disabled={!enabled(key) && !(onlong && (key === 'ft' || key === 'in'))}
+		class:dim={!enabled(key)}
+		onclick={k(key)}
+		onpointerdown={() => holdStart(key)}
+		onpointerup={holdEnd}
+		onpointerleave={holdEnd}
+		oncontextmenu={(e) => e.preventDefault()}
+		aria-label={cap}
+	>
 		<span class="glyph">{glyph}</span><span class="cap">{cap}</span>
 	</button>
 {/snippet}
@@ -73,9 +104,6 @@
 	>
 {/snippet}
 
-{#snippet quickKey(u: 'sqft' | 'cuft' | 'cuyd', label: string, aria: string)}
-	<button class="key quick" aria-label={aria} disabled={!unitEnabled} onclick={() => { tap(); onquick?.(u); }}>{label}</button>
-{/snippet}
 {#snippet parens()}
 	<div class="parens">
 		<button class="key fn par" disabled={!canParen('(')} onclick={() => { tap(); onparen?.('('); }} aria-label="Open parenthesis">(</button>
@@ -88,36 +116,32 @@
 
 {#if mode === 'calc' && wide}
 	<div class="pad calc wide">
-		{@render quickKey('sqft', 'ft²', 'Square feet')}
+		<button class="key fx unitmore" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
 		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={24} /></button>
 		{@render parens()}
 		{@render opKey('÷')}
 
-		{@render quickKey('cuft', 'ft³', 'Cubic feet')}
+		{@render fnKey('sq', 'x²', 'Square')}
 		{@render unitKey('ft', '′', 'feet')}
 		{@render unitKey('in', '″', 'inch')}
 		{@render unitKey('frac', '/', 'fraction')}
 		{@render opKey('×')}
 
-		{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
-		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
-		{@render fnKey('sq', 'x²', 'Square')}
-		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
 		{@render fnKey('cube', 'x³', 'Cube')}
+		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
+		{@render fnKey('sqrt', '√', 'Square root')}
+		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
+		{@render fnKey('pi', 'π', 'Pi')}
 		{@render digit('1')}{@render digit('2')}{@render digit('3')}
 		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
-		{@render fnKey('sqrt', '√', 'Square root')}
+		{@render fnKey('neg', '±', 'Change sign')}
 		{@render digit('0', 'wide-key')}{@render digit('.')}
 	</div>
 {:else if mode === 'calc'}
 	<div class="pad calc">
 		<div class="strip">
-			{@render quickKey('sqft', 'ft²', 'Square feet')}
-			{@render quickKey('cuft', 'ft³', 'Cubic feet')}
-			{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
-			<button class="key quick unitmore" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
-			<span class="gap"></span>
+			<button class="key fx unitmore" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
 			{@render fnKey('sq', 'x²', 'Square')}
 			{@render fnKey('cube', 'x³', 'Cube')}
 			{@render fnKey('sqrt', '√', 'Square root')}
@@ -159,12 +183,12 @@
 	.calc {
 		grid-template-rows: 0.6fr 0.8fr 0.9fr repeat(4, 1fr);
 	}
-	/* Portrait: quick units and x² x³ √ as a slim strip over the keys. */
+	/* Portrait: Unit and x² x³ √ as a slim strip over the keys. */
 	.strip {
 		grid-column: 1 / -1;
 		display: grid;
-		grid-template-columns: repeat(4, 1fr) 2px repeat(3, 1fr);
-		gap: 5px;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 10px;
 		min-height: 0;
 	}
 	.parens {
@@ -178,15 +202,12 @@
 		font-weight: 500;
 		font-family: var(--font-num);
 	}
-	.quick.unitmore {
-		font-size: 0.9rem;
-	}
-	.quick {
-		background: var(--key-unit);
-		color: var(--primary-text);
+	.unitmore {
 		font-family: var(--font);
-		font-size: 1.1rem;
-		font-weight: 650;
+		font-size: 1rem;
+	}
+	.key.dim {
+		opacity: 0.38;
 	}
 	.strip .key {
 		border-radius: 14px;
@@ -232,7 +253,6 @@
 		border-radius: 14px;
 		font-size: 1.4rem;
 	}
-	.calc.wide .quick,
 	.calc.wide .fx {
 		font-size: 1.1rem;
 	}
