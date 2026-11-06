@@ -32,4 +32,4 @@ These terms may change with a new version of the app; the date above says when t
 
 ## Questions
 
-Open an issue at github.com/a2cons-com/a2calc/issues.
+Email A2 Labs support at support@a2cons.com, or open an issue at github.com/a2cons-com/a2calc/issues.

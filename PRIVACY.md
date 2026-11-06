@@ -28,4 +28,4 @@ If this ever changes (for example, if a future version adds a feature that needs
 
 ## Questions
 
-Open an issue at github.com/a2cons-com/a2calc/issues.
+Email A2 Labs support at support@a2cons.com, or open an issue at github.com/a2cons-com/a2calc/issues.
