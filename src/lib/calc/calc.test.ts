@@ -143,8 +143,11 @@ describe('calculator', () => {
 	it('replaces a repeated operator and shows errors', () => {
 		let s = keys(C.initialState(), `5'+×2`);
 		expect(C.exprText(s)).toBe('5′ × 2');
-		s = keys(C.initialState(), `5'+3=`);
-		expect(s.error).toMatch(/plain number/);
+		// 5' + 3 now means 3 feet (the unit carries over after +)
+		expect(keys(C.initialState(), `5'+3=`).done).toEqual({ v: 96, d: 1 });
+		// a length plus an area is still refused
+		s = C.equals(C.unit(keys(C.initialState(), `5'+3`), 'sqft'));
+		expect(s.error).toMatch(/Can't mix/);
 	});
 	it('backspaces through operators', () => {
 		let s = keys(C.initialState(), `5'+`);
@@ -235,6 +238,33 @@ describe('calculator', () => {
 		s = C.power(keys(C.initialState(), `4'`), 'in', 2);
 		expect(C.equals(s).done).toEqual({ v: 4, d: 2 });
 		expect(C.canPower(keys(C.initialState(), `5'3`))).toBe(false);
+	});
+	it('suggests the unit of the number before after + and −', () => {
+		// 5 cu ft + 3 -> 3 cu ft
+		let s = C.power(keys(C.initialState(), '5'), 'ft', 3);
+		s = keys(s, '+3');
+		expect(C.exprText(s)).toBe('5 cu ft + 3 cu ft');
+		expect(toUnit(C.equals(s).done!, 'cuft')).toBeCloseTo(8);
+		// 12' + 4 -> 4'; 12' + 4" is still inches
+		expect(C.equals(keys(C.initialState(), `12'+4`)).done).toEqual({ v: 192, d: 1 });
+		expect(C.equals(keys(C.initialState(), `12'+4"`)).done).toEqual({ v: 148, d: 1 });
+		expect(C.exprText(keys(C.initialState(), `12'+4"`))).toBe('12′ + 4″');
+		// x and / keep plain numbers
+		expect(C.equals(keys(C.initialState(), `12'×3`)).done).toEqual({ v: 432, d: 1 });
+		// backspace keeps the unit until the digits are gone
+		let b = keys(C.initialState(), `12'+45`);
+		b = C.back(b);
+		expect(C.exprText(b)).toBe('12′ + 4′');
+		b = C.back(C.back(b));
+		expect(C.exprText(b)).toBe('12′');
+		// changing + to x drops the suggestion
+		const x = keys(C.initialState(), `12'+×3`);
+		expect(C.exprText(x)).toBe('12′ × 3');
+		// after an answer shown in cu yd, + suggests cu yd
+		let r = C.equals(C.power(keys(C.initialState(), '27'), 'ft', 3));
+		r = C.op(r, '+', 16, 'cuyd');
+		r = keys(r, '1=');
+		expect(toUnit(r.done!, 'cuyd')).toBeCloseTo(2);
 	});
 	it('cubes a length into a volume', () => {
 		const s = C.equals(C.fn(keys(C.initialState(), `3'`), 'cube', 16));

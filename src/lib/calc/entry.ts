@@ -22,6 +22,11 @@ import { fromUnit, type Quantity, type UnitId, UNITS } from './units';
 export interface Entry {
 	raw: string;
 	unit: UnitId | null;
+	/** An empty entry's suggested unit: the first digit typed takes it
+	 *  (after + or −, the unit of the number before). */
+	hint?: UnitId | null;
+	/** The unit came from the hint: the feet / inch keys replace it. */
+	auto?: boolean;
 }
 
 export const emptyEntry = (): Entry => ({ raw: '', unit: null });
@@ -82,6 +87,8 @@ export const canSetPower = (e: Entry) => baseNumber(e) !== null;
  *  `cycle`: whether the feet/inch keys may turn the value into an area or
  *  a volume (not in fields that hold a length). */
 export function canPress(e: Entry, key: EntryKey, cycle = true): boolean {
+	// A suggested unit gives way to a feet or inch mark typed on purpose.
+	if (e.auto && (key === 'ft' || key === 'in')) return canPress({ raw: e.raw, unit: null }, key, cycle);
 	if (cycle && (key === 'ft' || key === 'in') && cycled(e, key)) return true;
 	const r = e.raw;
 	const t = tail(r);
@@ -113,6 +120,11 @@ export function canPress(e: Entry, key: EntryKey, cycle = true): boolean {
 }
 
 export function press(e: Entry, key: EntryKey, cycle = true): Entry {
+	// First digit of an entry with a suggested unit: take the unit.
+	if (e.raw === '' && e.unit === null && e.hint && (/^\d$/.test(key) || key === '.')) {
+		return { raw: key === '.' ? '0.' : key, unit: e.hint, auto: true };
+	}
+	if (e.auto && (key === 'ft' || key === 'in')) return press({ raw: e.raw, unit: null }, key, cycle);
 	if (cycle && (key === 'ft' || key === 'in')) {
 		const next = cycled(e, key);
 		if (next) return next;
@@ -125,11 +137,26 @@ export function press(e: Entry, key: EntryKey, cycle = true): Entry {
 }
 
 export function backspace(e: Entry): Entry {
+	// A suggested unit stays while digits go; with the last digit gone the
+	// entry is back to empty, still suggesting it.
+	if (e.auto && e.unit) {
+		const raw = e.raw.slice(0, -1);
+		return raw === '' ? { raw: '', unit: null, hint: e.unit } : { ...e, raw };
+	}
 	if (e.unit) return { ...e, unit: null };
 	return { ...e, raw: e.raw.slice(0, -1) };
 }
 
 export const isEmpty = (e: Entry) => e.raw === '' && e.unit === null;
+
+/** The single unit an entry is in, to suggest for the next number:
+ *  a tagged unit, or feet / inches when the entry is only one of them. */
+export function unitOf(e: Entry): UnitId | null {
+	if (e.unit) return e.unit;
+	if (FEET_ONLY.test(e.raw)) return 'ft';
+	if (INCH_ONLY.test(e.raw)) return 'in';
+	return null;
+}
 
 /** Feet, inches, fraction pieces of a raw entry (strings as typed). */
 interface Parts {
@@ -197,6 +224,8 @@ export function entryValue(e: Entry): Quantity | null {
 /** The entry for the display: 5′ 3 1/2″. */
 export function formatEntry(e: Entry): string {
 	if (e.raw === '') return e.unit ? UNITS[e.unit].label : '';
+	if (e.unit === 'ft') return `${e.raw}′`;
+	if (e.unit === 'in') return `${e.raw}″`;
 	const p = parts(e.raw);
 	const out: string[] = [];
 	if (p.feet !== null) out.push(`${p.feet}′`);

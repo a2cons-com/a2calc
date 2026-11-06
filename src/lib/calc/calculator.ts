@@ -1,7 +1,7 @@
 // The basic calculator's state machine, kept free of UI so it can be
 // tested: keys go in, the expression / live result / tape come out.
 
-import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, press, withPower, type Entry, type EntryKey } from './entry';
+import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, press, unitOf, withPower, type Entry, type EntryKey } from './entry';
 import { CalcError, evaluate, openParens, tokensText, tokenText, type Op, type Token } from './expression';
 import { formatAs, defaultFormat, fromUnit, UNITS, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
@@ -120,26 +120,47 @@ export function unit(s: CalcState, u: UnitId): CalcState {
 	}
 	const e = current(s);
 	if (!e || /['"]/.test(e.raw) || e.raw === '') return s;
-	return setCurrent(s, { ...e, unit: u });
+	return setCurrent(s, { ...e, unit: u, auto: false });
 }
+
+/** The unit to suggest after + or −: the operand's own (a tagged unit, or
+ *  feet / inches alone; for a value, the unit it is shown in). × and ÷
+ *  suggest nothing: their second number is usually a plain count. */
+function hintFor(o: Op, operand: Token | undefined, fmt?: LengthFormat): UnitId | null {
+	if (o !== '+' && o !== '−' || !operand) return null;
+	if (operand.kind === 'entry') return unitOf(operand.entry);
+	if (operand.kind === 'value') {
+		const d = operand.value.d;
+		if (d === 0) return null;
+		if (fmt && fmt !== 'ftin' && UNITS[fmt as UnitId]?.d === d) return fmt as UnitId;
+		if (fmt === 'in' && d === 1) return 'in';
+		return d === 2 ? 'sqft' : d === 3 ? 'cuft' : null;
+	}
+	return null;
+}
+
+const nextEntry = (o: Op, operand: Token | undefined, fmt?: LengthFormat): Token => ({ kind: 'entry', entry: { ...emptyEntry(), hint: hintFor(o, operand, fmt) } });
 
 /** `fmt`: how the answer is shown now, so carrying it on keeps that unit. */
 export function op(s: CalcState, o: Op, den: number, fmt?: LengthFormat): CalcState {
 	if (s.done) {
-		return { ...s, tokens: [{ kind: 'value', value: s.done, text: valueText(s.done, den, fmt) }, { kind: 'op', op: o }, { kind: 'entry', entry: emptyEntry() }], done: null, error: null };
+		const value: Token = { kind: 'value', value: s.done, text: valueText(s.done, den, fmt) };
+		return { ...s, tokens: [value, { kind: 'op', op: o }, nextEntry(o, value, fmt)], done: null, error: null };
 	}
 	const tokens = [...s.tokens];
 	const last = tokens[tokens.length - 1];
 	if (last.kind === 'entry' && isEmpty(last.entry)) {
-		// Change the operator just typed; nothing to apply it to otherwise.
+		// Change the operator just typed (and what it suggests); nothing to
+		// apply it to otherwise.
 		const prev = tokens[tokens.length - 2];
 		if (prev?.kind === 'op') {
 			tokens[tokens.length - 2] = { kind: 'op', op: o };
+			tokens[tokens.length - 1] = nextEntry(o, tokens[tokens.length - 3]);
 			return { ...s, tokens, error: null };
 		}
 		return s;
 	}
-	return { ...s, tokens: [...tokens, { kind: 'op', op: o }, { kind: 'entry', entry: emptyEntry() }], error: null };
+	return { ...s, tokens: [...tokens, { kind: 'op', op: o }, nextEntry(o, last)], error: null };
 }
 
 export function equals(s: CalcState): CalcState {
