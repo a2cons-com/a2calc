@@ -10,6 +10,7 @@
 // (under 1% of a cell for a #5). https://www.cmha.org/resource/tek-04-02a/
 
 import { FT3_PER_YD3, roundUpQuarter } from './concrete';
+import type { Run } from './framing';
 
 export const CMU_WIDTHS = [6, 8, 10, 12] as const;
 export type CmuWidth = (typeof CMU_WIDTHS)[number];
@@ -43,6 +44,34 @@ export interface GroutInput {
 	wastePct: number;
 	/** Left in the pump and hose, yd³ (0 when bucketed). */
 	pumpYd3: number;
+	/** The walls, when drawn one by one (the app always does): their
+	 *  totals replace lengthIn, corners, ends and openingsSf (wallTotals). */
+	runs?: Run[];
+	closed?: boolean;
+}
+
+/** Block actually laid: a nominal width less the 3/8" joint. */
+export const actualWidth = (w: CmuWidth) => w - 0.375;
+
+/** Length, corners, ends and openings of walls drawn one by one. Each
+ *  wall runs through the corner at its end and the next butts it (as on
+ *  the plan), so lengths simply add up with nothing to take off. Ends:
+ *  both ends of walls that don't close, and both jambs of each door and
+ *  window. */
+export function wallTotals(runs: Run[], closed: boolean, heightIn: number) {
+	const shut = closed && runs.length > 2;
+	const openings = runs.flatMap((r) => r.openings);
+	return {
+		lengthIn: runs.reduce((s, r) => s + Math.max(0, r.length), 0),
+		outside: false,
+		corners: Math.max(0, runs.length - 1) + (shut ? 1 : 0),
+		ends: (runs.length && !shut ? 2 : 0) + 2 * openings.length,
+		openingsSf:
+			openings.reduce((s, o) => {
+				const b = o.kind === 'door' ? 0 : Math.max(0, o.sill);
+				return s + Math.max(0, o.width) * Math.max(0, Math.min(heightIn, b + o.height) - b);
+			}, 0) / 144
+	};
 }
 
 export interface GroutResult {
@@ -56,7 +85,8 @@ export interface GroutResult {
 	blocks: number;
 }
 
-export function groutVolume(i: GroutInput): GroutResult {
+export function groutVolume(input: GroutInput): GroutResult {
+	const i = input.runs ? { ...input, ...wallTotals(input.runs, !!input.closed, input.heightIn) } : input;
 	const deduct = i.outside ? Math.max(0, i.corners) * i.width : 0;
 	const netLengthIn = Math.max(0, i.lengthIn - deduct);
 	const lengthFt = netLengthIn / 12;

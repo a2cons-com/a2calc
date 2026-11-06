@@ -12,13 +12,16 @@
 		plan,
 		height,
 		selected,
-		onselect
+		onselect,
+		material = 'wood'
 	}: {
 		plan: Plan;
 		/** Wall height, for placing openings (a window's head is clipped to it). */
 		height: number;
 		selected: number;
 		onselect?: (id: number) => void;
+		/** Wall color: wood framing or concrete block. */
+		material?: 'wood' | 'block';
 	} = $props();
 
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
@@ -66,7 +69,7 @@
 	<text x={c[0]} y={c[1]} transform="rotate({angle(w)} {c[0]} {c[1]})" font-size={fs} class="dt {cls}" text-anchor="middle" dominant-baseline="middle">{label}</text>
 {/snippet}
 
-<svg viewBox={view} role="img" aria-label="Floor plan of the walls">
+<svg viewBox={view} class={material} role="img" aria-label="Floor plan of the walls">
 	{#each plan.walls as w, i (w.run.id)}
 		{@const on = w.run.id === selected}
 		{@const ops = place(w.run, height)}
@@ -147,6 +150,10 @@
 	.body {
 		fill: var(--wood);
 		stroke: var(--wood-edge);
+	}
+	.block .body {
+		fill: var(--cmu);
+		stroke: var(--cmu-edge);
 	}
 	.wall {
 		cursor: pointer;

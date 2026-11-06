@@ -1,15 +1,25 @@
 <script lang="ts">
-	import { formatNumber } from '$lib/calc/units';
-	import { CMU_WIDTHS, groutVolume, type CmuWidth } from '$lib/takeoff/grout';
-	import { grout as st } from '$lib/stores/app.svelte';
+	import { formatFtIn, formatNumber } from '$lib/calc/units';
+	import { actualWidth, CMU_WIDTHS, groutVolume, wallTotals, type CmuWidth } from '$lib/takeoff/grout';
+	import { moveRange } from '$lib/takeoff/framing';
+	import { planWalls } from '$lib/takeoff/plan';
+	import { blockScene } from '$lib/takeoff/scene';
+	import { grout as st, prefs } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
-	import GroutSketch from '$lib/components/GroutSketch.svelte';
+	import PlanCard from '$lib/components/PlanCard.svelte';
+	import WallList from '$lib/components/WallList.svelte';
+	import BlockElevation from '$lib/components/BlockElevation.svelte';
 
 	const SPACINGS = [0, 16, 24, 32, 40, 48];
 	const r = $derived(groutVolume(st));
 	const solid = $derived(!st.spacingIn);
+	const totals = $derived(wallTotals(st.runs, st.closed, st.heightIn));
+	const plan = $derived(planWalls(st.runs, actualWidth(st.width), st.closed));
+	let selectedId = $state<number | null>(null);
+	const sel = $derived(st.runs.find((x) => x.id === selectedId) ?? st.runs[0]);
+	const ft = (v: number) => formatFtIn(v, prefs.precision);
 	const yd = (v: number) => formatNumber(v, 2);
 	const order = (v: number) => {
 		const whole = Math.floor(v);
@@ -30,11 +40,19 @@
 		<span>Total</span><span>{yd(r.totalYd3)} yd</span>
 		{#if r.cells !== null}<span>Cells grouted</span><span>{r.cells}</span>{/if}
 		<span>Blocks (no waste)</span><span>{r.blocks.toLocaleString('en-US')}</span>
+		<span>Wall length</span><span>{ft(totals.lengthIn)} · {st.runs.length} {st.runs.length === 1 ? 'wall' : 'walls'}</span>
+		{#if totals.corners}<span>Corners</span><span>{totals.corners}</span>{/if}
+		{#if totals.openingsSf > 0}<span>Openings</span><span>{formatNumber(totals.openingsSf, 1)} sq ft</span>{/if}
 	</ResultCard>
 
-	<div class="card sketch">
-		<GroutSketch lengthIn={r.netLengthIn} heightIn={st.heightIn} spacingIn={st.spacingIn} />
-	</div>
+	<PlanCard material="block" {plan} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => blockScene(plan, st.heightIn, st.spacingIn, sel?.id ?? -1)} />
+
+	<WallList walls={st} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} openingLabel="Opening">
+		{#snippet elevation(run, move)}
+			{@const w = plan.walls.find((x) => x.run.id === run.id)}
+			{#if w}<BlockElevation wall={w} height={st.heightIn} spacingIn={st.spacingIn} onmove={move} range={(id) => moveRange(run, id, st.heightIn)} />{/if}
+		{/snippet}
+	</WallList>
 
 	<div class="section-title">Block</div>
 	<div class="seg">
@@ -43,15 +61,8 @@
 		{/each}
 	</div>
 
-	<div class="section-title">Wall</div>
-	<div class="fields">
-		<Field label="Total length" bind:value={st.lengthIn} bare="ft" min={0} />
-		<div class="seg">
-			<button class:on={st.outside} onclick={() => (st.outside = true)}>Outside face</button>
-			<button class:on={!st.outside} onclick={() => (st.outside = false)}>Centerline</button>
-		</div>
-		<Field label="Height" bind:value={st.heightIn} bare="ft" min={0} />
-		<Field label="Corners" kind="number" bind:value={st.corners} integer min={0} max={200} note={st.outside ? 'One block width comes off per corner' : ''} />
+	<div class="fields gap">
+		<Field label="Wall height" bind:value={st.heightIn} bare="ft" min={8} max={480} note="Rounded to whole 8″ courses in the drawing" />
 	</div>
 
 	<div class="section-title">Grouted cells</div>
@@ -62,11 +73,10 @@
 	</div>
 	<div class="fields gap">
 		{#if solid}
-			<Field label="Openings" kind="number" bind:value={st.openingsSf} suffix="sq ft" min={0} note="Doors and windows: no cells there" />
+			<p class="fine note">Every cell filled, except at the doors and windows drawn on the walls.</p>
 		{:else}
-			<Field label="Ends and jambs" kind="number" bind:value={st.ends} integer min={0} max={500} note="A grouted cell at each wall end and jamb" />
 			<Field label="Cells at each corner" kind="number" bind:value={st.cellsPerCorner} integer min={0} max={6} />
-			<Field label="Openings (blocks only)" kind="number" bind:value={st.openingsSf} suffix="sq ft" min={0} />
+			<p class="fine note">Plus one cell at each open wall end and each side of every door and window ({totals.ends} here).</p>
 		{/if}
 	</div>
 
@@ -91,9 +101,8 @@
 </div>
 
 <style>
-	.sketch {
-		margin-top: 12px;
-		padding: 12px;
+	.note {
+		margin: 0 4px;
 	}
 	.fields {
 		display: flex;

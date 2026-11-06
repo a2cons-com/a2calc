@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { formatFtIn, formatNumber } from '$lib/calc/units';
-	import { frameWall, freeSpot, LUMBER, moveRange, place, HEADER_SIZES, PRECUTS, SPACINGS, STUD_SIZES, type Opening, type Run } from '$lib/takeoff/framing';
-	import { prefs, wall as st, newId } from '$lib/stores/app.svelte';
+	import { frameWall, LUMBER, moveRange, HEADER_SIZES, PRECUTS, SPACINGS, STUD_SIZES } from '$lib/takeoff/framing';
+	import { prefs, wall as st } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import WallElevation from '$lib/components/WallElevation.svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import FloorPlan from '$lib/components/FloorPlan.svelte';
+	import PlanCard from '$lib/components/PlanCard.svelte';
+	import WallList from '$lib/components/WallList.svelte';
+	import { framingScene } from '$lib/takeoff/scene';
 	import { planWalls } from '$lib/takeoff/plan';
 
 	const r = $derived(frameWall(st));
@@ -19,39 +20,10 @@
 	/** Heights that take a precut stud with three plates (8', 9', 10'). */
 	const HEIGHTS = PRECUTS.map((p) => ({ h: p + 4.5, label: `${Math.round((p + 4.5) / 12)}′` }));
 
-	let view = $state<'plan' | '3d'>('plan');
 	let selectedId = $state<number | null>(null);
 	/** The wall being edited: the one picked in the plan, else the first. */
 	const sel = $derived(st.runs.find((x) => x.id === selectedId) ?? st.runs[0]);
 	const plan = $derived(planWalls(st.runs, LUMBER[st.member]?.[1] ?? 3.5, st.closed));
-
-	function addRun() {
-		const id = newId();
-		st.runs.push({ id, length: 120, openings: [], turn: 'right' });
-		selectedId = id;
-	}
-	function removeRun(i: number) {
-		st.runs.splice(i, 1);
-		selectedId = st.runs[Math.max(0, i - 1)]?.id ?? null;
-	}
-	/** A new door or window goes in the largest free stretch of wall, a
-	 *  foot from the others; the wall grows when there is no room. */
-	function addOpening(run: Run, kind: Opening['kind']) {
-		const width = kind === 'door' ? 38 : 36;
-		// Pin centered openings where they are, so a longer wall can't shift them.
-		for (const p of place(run, st.height)) if (p.o.offset === null) p.o.offset = Math.round(p.a);
-		const spot = freeSpot(run, width, st.height);
-		if (spot.length > run.length) run.length = spot.length;
-		run.openings.push(
-			kind === 'door'
-				? { id: newId(), kind, width, height: 82.5, sill: 0, offset: spot.offset, header: '2x10' }
-				: { id: newId(), kind, width, height: 48, sill: 36, offset: spot.offset, header: '2x10' }
-		);
-	}
-	function moveOpening(run: Run, id: number, offset: number) {
-		const o = run.openings.find((x) => x.id === id);
-		if (o) o.offset = offset;
-	}
 	const ROLE_NAME: Record<string, string> = {
 		stud: 'Studs', corner: 'Corner backers', king: 'King studs', jack: 'Jack studs', cripple: 'Cripples',
 		header: 'Header plies', sill: 'Sills', 'top plate': 'Top plate', 'bottom plate': 'Bottom plate'
@@ -75,92 +47,22 @@
 		<p class="warn">{w}</p>
 	{/each}
 
-	<div class="section-title view-title">
-		<span>Plan</span>
-		<div class="seg mini-seg">
-			<button class:on={view === 'plan'} onclick={() => (view = 'plan')}>Plan</button>
-			<button class:on={view === '3d'} onclick={() => (view = '3d')}>3D</button>
-		</div>
-	</div>
-	<div class="card plan">
-		{#if view === 'plan'}
-			<FloorPlan {plan} height={st.height} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} />
-			<p class="fine hint">{st.runs.length > 1 ? 'Tap a wall to edit it.' : 'Add a wall to turn a corner.'}{plan.gap ? ` The walls miss closing by ${ft(plan.gap.size)}.` : ''}</p>
-		{:else}
-			{#await import('$lib/components/Wall3D.svelte') then { default: Wall3D }}
-				<Wall3D runs={r.runs} {plan} height={st.height} selected={sel?.id ?? -1} />
-			{/await}
-			<p class="fine hint">Drag to turn, pinch to zoom, two fingers to move.</p>
-		{/if}
-	</div>
+	<PlanCard {plan} height={st.height} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => framingScene(r.runs, plan, sel?.id ?? -1)} />
 
-	{#if sel}
-		{@const run = sel}
-		{@const i = st.runs.indexOf(run)}
-		{@const rf = r.runs[i]}
-		<div class="section-title run-title">
-			<div class="chips">
-				{#each st.runs as x, k (x.id)}
-					<button class="pill" class:on={x.id === run.id} onclick={() => (selectedId = x.id)}>Wall {k + 1}</button>
-				{/each}
-			</div>
-			{#if st.runs.length > 1}
-				<button class="btn quiet small" onclick={() => removeRun(i)}><Icon name="trash" size={16} /> Remove</button>
-			{/if}
-		</div>
-		<div class="card run">
-			{#if rf}
-				<WallElevation {rf} height={st.height} onmove={(id, a) => moveOpening(run, id, a)} range={(id) => moveRange(run, id, st.height)} />
-				{#if run.openings.length}<p class="fine hint">Drag a door or window along the wall to move it.</p>{/if}
-			{/if}
-			<Field label="Length" bind:value={run.length} bare="ft" min={12} max={2400} />
-			{#if i > 0 || (st.closed && st.runs.length > 2)}
-				<div class="turn">
-					<span class="mini">{i > 0 ? `Turn from wall ${i}` : `Turn from wall ${st.runs.length}`}</span>
-					<div class="seg">
-						<button class:on={(run.turn ?? 'right') === 'left'} onclick={() => (run.turn = 'left')}>↰ Left</button>
-						<button class:on={(run.turn ?? 'right') === 'right'} onclick={() => (run.turn = 'right')}>Right ↱</button>
-					</div>
+	<WallList walls={st} height={st.height} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} header="2x10">
+		{#snippet elevation(run, move)}
+			{@const rf = r.runs[st.runs.indexOf(run)]}
+			{#if rf}<WallElevation {rf} height={st.height} onmove={move} range={(id) => moveRange(run, id, st.height)} />{/if}
+		{/snippet}
+		{#snippet openingExtra(o)}
+			<div class="op-foot">
+				<span class="mini">Header</span>
+				<div class="seg hdr">
+					{#each HEADER_SIZES as h (h)}<button class:on={o.header === h} onclick={() => (o.header = h)}>{h}</button>{/each}
 				</div>
-			{/if}
-			{#each run.openings as o, j (o.id)}
-				<div class="opening">
-					<div class="op-head">
-						<div class="seg kind">
-							<button class:on={o.kind === 'door'} onclick={() => { o.kind = 'door'; o.sill = 0; }}>Door</button>
-							<button class:on={o.kind === 'window'} onclick={() => { o.kind = 'window'; if (!o.sill) o.sill = 36; }}>Window</button>
-						</div>
-						<button class="icon-btn" onclick={() => run.openings.splice(j, 1)} aria-label="Remove opening"><Icon name="close" size={18} /></button>
-					</div>
-					<div class="grid2">
-						<Field label="RO width" bind:value={o.width} bare="in" min={6} max={run.length} />
-						<Field label="RO height" bind:value={o.height} bare="in" min={6} max={st.height} />
-						{#if o.kind === 'window'}
-							<Field label="Sill height" bind:value={o.sill} bare="in" min={0} max={st.height} />
-						{/if}
-						<Field label="From left" value={o.offset ?? (run.length - o.width) / 2} onchange={(v) => (o.offset = v)} bare="in" min={0} max={run.length} note={o.offset === null ? 'centered' : ''} />
-					</div>
-					<div class="op-foot">
-						<span class="mini">Header</span>
-						<div class="seg hdr">
-							{#each HEADER_SIZES as h (h)}<button class:on={o.header === h} onclick={() => (o.header = h)}>{h}</button>{/each}
-						</div>
-					</div>
-				</div>
-			{/each}
-			<div class="add-row">
-				<button class="btn" onclick={() => addOpening(run, 'door')}><Icon name="plus" size={16} /> Door</button>
-				<button class="btn" onclick={() => addOpening(run, 'window')}><Icon name="plus" size={16} /> Window</button>
 			</div>
-		</div>
-	{/if}
-
-	<div class="add-run">
-		<button class="btn solid" onclick={addRun}><Icon name="plus" size={18} /> Turn a corner, add a wall</button>
-		{#if st.runs.length > 2}
-			<label class="toggle"><input type="checkbox" bind:checked={st.closed} /> Last wall closes back to the first</label>
-		{/if}
-	</div>
+		{/snippet}
+	</WallList>
 
 	<div class="section-title">Framing</div>
 	<div class="fields">
@@ -260,90 +162,6 @@
 		color: var(--muted);
 		margin: 2px 2px 4px;
 	}
-	.run-title,
-	.view-title {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 8px;
-	}
-	.mini-seg {
-		width: 9rem;
-	}
-	.mini-seg button {
-		padding: 4px 0;
-		font-size: 0.8rem;
-		text-transform: none;
-		letter-spacing: 0;
-	}
-	.chips {
-		display: flex;
-		gap: 6px;
-		overflow-x: auto;
-		min-width: 0;
-		padding: 2px 0;
-	}
-	.chips .pill {
-		font-size: 0.8rem;
-		text-transform: none;
-		letter-spacing: 0;
-		white-space: nowrap;
-	}
-	.plan {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		padding: 10px;
-	}
-	.turn {
-		display: flex;
-		flex-direction: column;
-	}
-	.btn.small {
-		padding: 4px 8px;
-		font-size: 0.8rem;
-		text-transform: none;
-		letter-spacing: 0;
-	}
-	.run {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-	.hint {
-		margin: -4px 0 0;
-		text-align: center;
-	}
-	.run :global(.field) {
-		background: var(--bg);
-	}
-	.opening {
-		border: 1px solid var(--border);
-		border-radius: 14px;
-		padding: 10px;
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-	.op-head {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-	.op-head .kind {
-		flex: 1;
-	}
-	.grid2 {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 8px;
-	}
-	.grid2 :global(.field) {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 2px;
-		padding: 9px 12px;
-	}
 	.op-foot {
 		display: flex;
 		align-items: center;
@@ -351,35 +169,6 @@
 	}
 	.op-foot .hdr {
 		flex: 1;
-	}
-	.add-row {
-		display: flex;
-		gap: 8px;
-	}
-	.add-row .btn {
-		flex: 1;
-	}
-	.add-run {
-		margin-top: 14px;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-	.add-run .btn {
-		padding: 14px;
-	}
-	.toggle {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		font-size: 0.92rem;
-		color: var(--muted);
-		padding: 0 4px;
-	}
-	.toggle input {
-		width: 20px;
-		height: 20px;
-		accent-color: var(--primary);
 	}
 	.table {
 		padding: 4px 0;

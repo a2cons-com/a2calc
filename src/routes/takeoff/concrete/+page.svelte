@@ -7,6 +7,16 @@
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import ConcreteSketch from '$lib/components/ConcreteSketch.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ConcretePlan from '$lib/components/ConcretePlan.svelte';
+	import ViewToggle from '$lib/components/ViewToggle.svelte';
+	import { concreteScene, MAX_COPIES } from '$lib/takeoff/scene';
+
+	let view = $state<'sketch' | 'plan' | '3d'>('sketch');
+	const VIEWS: ['sketch' | 'plan' | '3d', string][] = [
+		['sketch', 'Sketch'],
+		['plan', 'Plan'],
+		['3d', '3D']
+	];
 
 	const KINDS = Object.keys(PIECE_NAMES) as PieceKind[];
 	const r = $derived(concreteOrder(st.pieces, st.wastePct, st.pumpYd3));
@@ -60,7 +70,7 @@
 		{#if r.netYd3 < 1 && r.netIn3 > 0}<span>Or premix (80 lb bags)</span><span>{bags80(r.netIn3 * (1 + st.wastePct / 100))} bags</span>{/if}
 	</ResultCard>
 
-	<div class="section-title">Pieces</div>
+	<ViewToggle title="Pieces" bind:view views={VIEWS} />
 	<div class="tabs">
 		{#each st.pieces as p, i (p.id)}
 			<button class="pill" class:on={i === sel} onclick={() => (st.selected = i)}>
@@ -72,7 +82,18 @@
 
 	{#if piece}
 		<div class="card piece">
-			<ConcreteSketch {piece} />
+			{#if view === 'sketch'}
+				<ConcreteSketch {piece} />
+			{:else if view === 'plan'}
+				<ConcretePlan {piece} />
+			{:else}
+				{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
+					<Scene3D scene={concreteScene(st.pieces, sel)} />
+				{/await}
+				<p class="fine hint">
+					Every piece, side by side{st.pieces.some((p) => p.count > MAX_COPIES) ? ` (at most ${MAX_COPIES} of each)` : ''}; this one is tinted. Drag to turn, pinch to zoom.
+				</p>
+			{/if}
 			<div class="kinds">
 				{#each KINDS as k (k)}
 					<button class="chip" class:on={piece.kind === k} onclick={() => setKind(piece, k)}>{PIECE_NAMES[k]}</button>
@@ -149,6 +170,10 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 8px;
+	}
+	.hint {
+		margin: -4px 0 0;
+		text-align: center;
 	}
 	.foot {
 		margin: 14px 4px;
