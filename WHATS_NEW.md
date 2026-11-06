@@ -8,7 +8,7 @@ New app icon: four calculator keys, with a dark-mode version.
 What changed
 
 - New icon: feet, inches, a nine and three quarter inch key, and equals; a darker version shows when the phone is in dark mode
-- The same mark in the calculator header, the welcome screen and About
+- The A2 logo with "Calc" in the calculator header and welcome screen; the new icon on the welcome screen and in About
 - Light launch screen with the new icon
 - Block fill grout now names its source in full (TEK 4-2A from the Concrete Masonry and Hardscapes Association), and About lists sources
 
