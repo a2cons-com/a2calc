@@ -82,3 +82,6 @@ if (existsSync(join(root, 'macos/project.yml'))) {
 }
 
 console.log(`ios project: ${cfg.appId} "${cfg.appName}" v${cfg.marketingVersion}${team ? `, team ${team}` : ''}`);
+
+// Third-party licenses for the About screen.
+await import('./gen-licenses.mjs');

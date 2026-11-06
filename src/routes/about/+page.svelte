@@ -4,7 +4,21 @@
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import { frac } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
+	import Sheet from '$lib/components/Sheet.svelte';
+	import Icon from '$lib/components/Icon.svelte';
+	import appLicense from '../../../LICENSE?raw';
+	import thirdParty from '$lib/licenses.json';
 	const version = __APP_VERSION__;
+	const SOURCE = 'https://github.com/a2cons-com/a2calc';
+
+	/** The license text open in the sheet. */
+	let shown = $state<{ title: string; text: string } | null>(null);
+	let sheetOpen = $state(false);
+	function show(title: string, text: string) {
+		// Join hard-wrapped lines so the text flows to the phone's width.
+		shown = { title, text: text.replace(/([^\n])\n(?![\n*\-])/g, '$1 ') };
+		sheetOpen = true;
+	}
 </script>
 
 <svelte:head><title>About · A2 Calc</title></svelte:head>
@@ -59,11 +73,33 @@
 	<div class="card fine legal">
 		<p>© {new Date().getFullYear()} A2 Labs. A2 Calc is made by A2 Labs.</p>
 		<p>
+			A2 Calc is free, open-source software under the
+			<button class="link" onclick={() => show('A2 Calc · MIT License', appLicense)}>MIT License</button>. The source code is at
+			<a href={SOURCE} target="_blank" rel="noopener">github.com/a2cons-com/a2calc</a>.
+		</p>
+		<p>The license covers the code. The A2 Calc name, the A2 logo and the app's icon identify A2 Labs; they are not licensed for other apps, including forks.</p>
+		<p>
 			Names of other organizations, publications and products that appear in the app are used only to identify a source and belong to their
 			owners; any trademarks among them are the property of their respective owners. A2 Calc is not affiliated with, sponsored or endorsed by
 			any of them.
 		</p>
 	</div>
+
+	<div class="section-title">Open-source software</div>
+	<div class="card oss">
+		<p class="fine">A2 Calc is built with these open-source packages. Tap one for its license.</p>
+		{#each thirdParty as p (p.name)}
+			<button class="row" onclick={() => show(`${p.name} ${p.version}`, p.text)}>
+				<span class="pkg">{p.name}<small>{p.version}</small></span>
+				<span class="lic">{p.license}</span>
+				<Icon name="chevron" size={16} />
+			</button>
+		{/each}
+	</div>
+
+	<Sheet bind:open={sheetOpen} title={shown?.title ?? ''}>
+		<pre class="license">{shown?.text}</pre>
+	</Sheet>
 
 	<p class="fine made"><Logo size={20} /><span>Made by A2 Labs</span></p>
 </div>
@@ -114,6 +150,60 @@
 	}
 	.legal p:last-child {
 		margin: 0;
+	}
+	.link {
+		color: var(--primary-text);
+		font-weight: 600;
+		text-decoration: underline;
+		padding: 0;
+		font-size: inherit;
+	}
+	.legal a {
+		color: var(--primary-text);
+		font-weight: 600;
+	}
+	.oss {
+		padding: 12px 6px 6px;
+	}
+	.oss .fine {
+		margin: 0 10px 6px;
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 10px;
+		text-align: left;
+		color: var(--text);
+		border-top: 1px solid var(--border);
+	}
+	.pkg {
+		flex: 1;
+		font-weight: 600;
+		font-size: 0.92rem;
+	}
+	.pkg small {
+		margin-left: 6px;
+		color: var(--faint);
+		font-weight: 500;
+	}
+	.lic {
+		font-size: 0.8rem;
+		color: var(--muted);
+	}
+	.row :global(svg) {
+		color: var(--faint);
+	}
+	.license {
+		white-space: pre-wrap;
+		font-family: var(--font);
+		font-size: 0.82rem;
+		line-height: 1.45;
+		color: var(--muted);
+		margin: 0;
+		user-select: text;
+		-webkit-user-select: text;
 	}
 	.made {
 		display: flex;

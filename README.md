@@ -49,3 +49,18 @@ the property of their respective owners. A2 Calc is not affiliated with,
 sponsored or endorsed by any of them.
 
 © 2026 A2 Labs.
+
+## License
+
+The code is released under the [MIT License](LICENSE), © 2026 A2 Labs.
+
+The license covers the code only. The A2 Calc name, the A2 logo and the
+app icons (`resources/`, the icon sets under `ios/`, `android/`,
+`macos/` and `windows/`, `static/`) identify A2 Labs and are not
+licensed for use in other apps, including forks: rename and re-icon a
+fork before publishing it.
+
+Everything the app ships with is MIT-licensed open-source software;
+`scripts/gen-licenses.mjs` collects their license texts into
+`src/lib/licenses.json` (on every `npm run config`), and the About
+screen lists them.
