@@ -1,0 +1,46 @@
+node_modules
+.DS_Store
+Thumbs.db
+
+# SvelteKit / Vite output
+/.svelte-kit
+/build
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Env (keep the example)
+.env
+.env.*
+!.env.example
+
+# Local secrets and build artifacts (see scripts/testflight.sh)
+/secrets/
+/dist/
+/artifacts/
+*.ipa
+*.xcarchive
+*.p8
+*.p12
+*.mobileprovision
+ExportOptions.local.plist
+
+# Xcode
+ios/App/build/
+ios/App/DerivedData/
+ios/App/xcuserdata/
+ios/App/*.xcodeproj/xcuserdata/
+ios/App/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/*.xcworkspace/xcuserdata/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/CapApp-SPM/.build/
+ios/App/.swiftpm/
+ios/App/**/.swiftpm/
+*.xcuserstate
+.claude/
+
+ios/App/App/Config/Build.xcconfig
+
+# Notes kept off the public repo
+/private/

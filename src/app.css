@@ -1,0 +1,265 @@
+/* A2 Calc theme. The A2 green (#006839) carries
+   the accent; everything else stays quiet so numbers read first. Light by
+   day, dark when the phone is in dark mode. */
+
+:root {
+	--green: #006839;
+	--green-dark: #004d2a;
+
+	--bg: #f2f5f3;
+	--surface: #ffffff;
+	--surface-2: #e8eeea;
+	--text: #111c16;
+	--muted: #5d6d65;
+	--faint: #8b9a92;
+	--border: #dde5e0;
+	--primary: #006839;
+	--primary-ink: #ffffff;
+	--primary-soft: #dfeee5;
+	--primary-text: #006839;
+	--danger: #b3261e;
+	--warn-bg: #fff4dc;
+	--warn-text: #7a5300;
+
+	--key-digit: #ffffff;
+	--key-fn: #e4ebe7;
+	--key-unit: #f0f6f2;
+	--key-shadow: 0 1px 0 rgba(17, 28, 22, 0.08), 0 1px 3px rgba(17, 28, 22, 0.06);
+
+	/* Drawings */
+	--wood: #e2c393;
+	--wood-edge: #b88a4f;
+	--wood-king: #d4ad72;
+	--wood-header: #b9834a;
+	--plate: #ebd3a6;
+	--opening: #dbe9f4;
+	--opening-edge: #8fb0c9;
+	--cmu: #d5dad7;
+	--cmu-edge: #aab3ae;
+	--grout: #6f7f77;
+	--concrete: #c8cdca;
+	--concrete-top: #dde1df;
+	--concrete-side: #b3bab6;
+
+	--radius-sm: 10px;
+	--radius: 16px;
+	--radius-lg: 24px;
+	--tabbar-h: 56px;
+	--font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+	--font-num: ui-rounded, 'SF Pro Rounded', -apple-system, system-ui, sans-serif;
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #0b100d;
+		--surface: #151c18;
+		--surface-2: #1d2621;
+		--text: #e6eee9;
+		--muted: #93a49b;
+		--faint: #66766d;
+		--border: #25302a;
+		--primary: #1a8553;
+		--primary-ink: #ffffff;
+		--primary-soft: #143322;
+		--primary-text: #5fc792;
+		--danger: #ff8a80;
+		--warn-bg: #3a2e12;
+		--warn-text: #f2cf7d;
+
+		--key-digit: #1b231f;
+		--key-fn: #252f2a;
+		--key-unit: #18271f;
+		--key-shadow: none;
+
+		--wood: #9c7c4f;
+		--wood-edge: #c9a36b;
+		--wood-king: #8c6a3c;
+		--wood-header: #7a5528;
+		--plate: #a88a5c;
+		--opening: #1b2a36;
+		--opening-edge: #4f7591;
+		--cmu: #3a423e;
+		--cmu-edge: #59635e;
+		--grout: #9fb0a7;
+		--concrete: #4a514d;
+		--concrete-top: #5b635f;
+		--concrete-side: #3b413e;
+		color-scheme: dark;
+	}
+}
+
+* {
+	box-sizing: border-box;
+	-webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+	margin: 0;
+	height: 100%;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font);
+	font-size: 16px;
+	-webkit-font-smoothing: antialiased;
+	-webkit-text-size-adjust: 100%;
+	overscroll-behavior: none;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	border: 0;
+	background: none;
+	padding: 0;
+	cursor: pointer;
+	touch-action: manipulation;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+h1,
+h2,
+h3 {
+	margin: 0;
+	letter-spacing: -0.01em;
+}
+
+a {
+	color: var(--primary-text);
+}
+
+.num {
+	font-family: var(--font-num);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A page that scrolls under a fixed header and above the tab bar. */
+.page {
+	padding: 0 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px);
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.page-head {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: calc(env(safe-area-inset-top) + 12px) 0 12px;
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+}
+.page-head h1 {
+	font-size: 1.6rem;
+	font-weight: 700;
+	flex: 1;
+}
+
+.card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 16px;
+}
+
+.section-title {
+	font-size: 0.78rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+	margin: 22px 4px 8px;
+}
+
+.icon-btn {
+	width: 40px;
+	height: 40px;
+	display: inline-grid;
+	place-items: center;
+	border-radius: 999px;
+	color: var(--muted);
+}
+.icon-btn:active {
+	background: var(--surface-2);
+}
+
+.pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 12px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	color: var(--text);
+	font-size: 0.88rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+.pill.on {
+	background: var(--primary);
+	color: var(--primary-ink);
+}
+
+.seg {
+	display: flex;
+	background: var(--surface-2);
+	border-radius: 12px;
+	padding: 3px;
+	gap: 2px;
+}
+.seg button {
+	flex: 1;
+	padding: 8px 6px;
+	border-radius: 9px;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: var(--muted);
+	white-space: nowrap;
+}
+.seg button.on {
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 11px 16px;
+	border-radius: 12px;
+	font-weight: 600;
+	background: var(--primary-soft);
+	color: var(--primary-text);
+}
+.btn.solid {
+	background: var(--primary);
+	color: var(--primary-ink);
+}
+.btn.quiet {
+	background: transparent;
+	color: var(--muted);
+}
+.btn:active {
+	filter: brightness(0.95);
+}
+
+.warn {
+	background: var(--warn-bg);
+	color: var(--warn-text);
+	border-radius: 12px;
+	padding: 10px 12px;
+	font-size: 0.9rem;
+}
+
+.fine {
+	font-size: 0.82rem;
+	color: var(--muted);
+	line-height: 1.45;
+}
