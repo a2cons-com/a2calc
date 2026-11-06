@@ -51,3 +51,20 @@ What to check
 
 - All keys are visible and easy to hit, including 0, the decimal point and equals
 - Open the menu and move between screens; the back arrow returns to the calculator
+
+## 0.1.3 (27), 2026-11-06
+
+One feet key for feet, square and cubic feet, and doors and windows you can drag along the wall.
+
+What changed
+
+- Feet key: tap once for feet, again for square feet, again for cubic feet, again back to feet; the inch key does the same with inches. Hold either key to pick from a menu. The separate square and cubic keys are gone; Unit has the rest
+- Stud wall: a new door or window goes into free wall a foot from the others, and the wall grows when there is no room
+- Stud wall: drag a door or window along the wall in the drawing; its distance from the left end shows while it moves. Long walls scroll sideways
+- Keyboard support (iPad with a keyboard)
+- Fractions show as 1/2, 1/16; About names A2 Labs and has a Legal section
+
+What to check
+
+- Type 5, then tap the feet key several times; then hold it
+- Add two windows to a short wall, then drag them around
