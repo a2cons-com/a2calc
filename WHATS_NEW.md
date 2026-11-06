@@ -3,16 +3,15 @@
      changed and what to check. scripts/testflight.sh sends it, archives it
      to docs/testflight-history.md and resets this file. -->
 
-New app icon: four calculator keys, with a dark-mode version.
+The keypad now fits on the screen, and the screens moved into a menu.
 
 What changed
 
-- New icon: feet, inches, a nine and three quarter inch key, and equals; a darker version shows when the phone is in dark mode
-- The A2 logo with "Calc" in the calculator header and welcome screen; the new icon on the welcome screen and in About
-- Light launch screen with the new icon
-- Block fill grout now names its source in full (TEK 4-2A from the Concrete Masonry and Hardscapes Association), and About lists sources
+- Fixed: the bottom row of keys (0 and the decimal point) was hidden under the tabs on a real iPhone; the keys now fit the screen
+- No more tabs at the bottom: Calculator, Convert, the takeoffs and About are in a menu, from the four-squares button at the top right
+- The header shows the app icon and A2 Calc
 
 What to check
 
-- The icon on your home screen, in light and dark mode
-- The grout screen's Source section
+- All keys are visible and easy to hit, including 0, the decimal point and equals
+- Open the menu and move between screens; the back arrow returns to the calculator

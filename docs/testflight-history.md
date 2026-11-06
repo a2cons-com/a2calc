@@ -20,3 +20,19 @@ What to check
 - Try a formula with parentheses, store the answer in A and use it again
 - Turn the phone sideways
 - Try each takeoff with a real job's numbers
+
+## 0.1.1 (10), 2026-11-05
+
+New app icon: four calculator keys, with a dark-mode version.
+
+What changed
+
+- New icon: feet, inches, a nine and three quarter inch key, and equals; a darker version shows when the phone is in dark mode
+- The A2 logo with "Calc" in the calculator header and welcome screen; the new icon on the welcome screen and in About
+- Light launch screen with the new icon
+- Block fill grout now names its source in full (TEK 4-2A from the Concrete Masonry and Hardscapes Association), and About lists sources
+
+What to check
+
+- The icon on your home screen, in light and dark mode
+- The grout screen's Source section
