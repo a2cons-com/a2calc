@@ -10,17 +10,23 @@ phone. Made by A2 Labs.
 - Takeoff: concrete to order, block fill grout, stud walls with doors and
   windows
 
-Built with SvelteKit as a static app and wrapped for iOS with Capacitor.
+Built with SvelteKit as a static app and wrapped for iOS and Android with
+Capacitor; `ios/` and `android/` share the same web build and the identity
+in `config/app.json`.
 
 ```sh
 npm install
 npm run dev            # web, http://localhost:5180
 npm run check && npm test
-scripts/build-sim.sh --run   # iOS Simulator
+scripts/build-sim.sh --run       # iOS Simulator
+scripts/build-android.sh --run   # Android emulator or connected phone
 ```
 
-Release builds: `scripts/testflight.sh` (needs `secrets/testflight.env`, see
-`secrets.env.example`).
+Release builds: `scripts/testflight.sh` (TestFlight; needs
+`secrets/testflight.env`, see `secrets.env.example`) and
+`scripts/play-release.sh` (Play Internal testing; needs `secrets/play.env`
+with `PLAY_KEY_PATH` and `android/keystore.properties` for the upload key).
+Both read the build notes from `WHATS_NEW.md`.
 
 ## Notes
 
