@@ -27,10 +27,11 @@ Release builds: `scripts/testflight.sh` (needs `secrets/testflight.env`, see
 Results are an estimating aid: check them before building or ordering. They
 are not engineering advice or a sealed calculation.
 
-Block fill grout volumes are based on Table 3 of TEK 4-2A, *Estimating
-Concrete Masonry Materials*, from the Concrete Masonry & Hardscapes
-Association (CMHA). Names of other organizations and their publications
-belong to their owners and are used only to cite a source; A2 Calc is not
-affiliated with, sponsored or endorsed by them.
+Block fill grout volumes are based on an industry technical note on
+estimating masonry materials (the app's grout screen gives the citation).
+Names of other organizations, publications and products are used only to
+identify a source and belong to their owners; any trademarks among them are
+the property of their respective owners. A2 Calc is not affiliated with,
+sponsored or endorsed by any of them.
 
 © 2026 A2 Labs.

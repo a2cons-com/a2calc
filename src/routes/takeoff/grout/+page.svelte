@@ -72,7 +72,7 @@
 
 	<div class="section-title">Allowances</div>
 	<div class="fields">
-		<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="The TEK table assumes 3%" />
+		<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="The source table includes 3%" />
 		<Field label="Pump and hose" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="0 when bucketed" />
 	</div>
 
@@ -80,13 +80,13 @@
 	<div class="card fine source">
 		<p>
 			Grout volumes are based on Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, <i>Estimating Concrete Masonry Materials</i></a>,
-			a technical note from the Concrete Masonry &amp; Hardscapes Association (CMHA, formerly NCMA). It is industry estimating guidance, not a code or standard.
+			a technical note published by the Concrete Masonry &amp; Hardscapes Association. It is industry estimating guidance, not a code or standard.
 		</p>
 		<p>
 			The table gives cubic feet of grout per 100 sq ft of wall for hollow two-core block, every cell filled, 3% waste included. A2 Calc takes the net volume
 			per cell from it and counts cells for partial grouting; your waste goes on top. Rebar, bond beams and lintels are not included.
 		</p>
-		<p>A2 Calc is not affiliated with or endorsed by CMHA.</p>
+		<p>The publisher is named only to cite the source. A2 Calc is not affiliated with, sponsored or endorsed by it.</p>
 	</div>
 </div>
 

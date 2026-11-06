@@ -50,17 +50,17 @@
 
 	<div class="section-title">Sources</div>
 	<div class="card fine">
-		Block fill grout: Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, Estimating Concrete Masonry Materials</a>
-		(Concrete Masonry &amp; Hardscapes Association), industry estimating guidance. Concrete waste and pump allowances, stud layout and framing
-		rules are common trade practice.
+		Block fill grout: an industry technical note on estimating masonry materials; the grout screen gives the full citation. Concrete waste
+		and pump allowances, stud layout and framing rules are common trade practice.
 	</div>
 
 	<div class="section-title">Legal</div>
 	<div class="card fine legal">
 		<p>© {new Date().getFullYear()} A2 Labs. A2 Calc is made by A2 Labs.</p>
 		<p>
-			Names of other organizations and their publications, such as CMHA (Concrete Masonry &amp; Hardscapes Association) and TEK, belong to
-			their owners and are used only to name a source. A2 Calc is not affiliated with, sponsored or endorsed by any of them.
+			Names of other organizations, publications and products that appear in the app are used only to identify a source and belong to their
+			owners; any trademarks among them are the property of their respective owners. A2 Calc is not affiliated with, sponsored or endorsed by
+			any of them.
 		</p>
 	</div>
 
