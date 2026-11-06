@@ -95,6 +95,15 @@
 	-webkit-tap-highlight-color: transparent;
 }
 
+/* A calculator has nothing to select: long presses belong to the keys,
+   not to iOS text selection or its copy / look up menu. */
+html,
+body {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+
 html,
 body {
 	margin: 0;

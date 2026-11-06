@@ -9,6 +9,7 @@
 	import AppMark from '$lib/components/AppMark.svelte';
 	import MenuButton from '$lib/components/MenuButton.svelte';
 	import { keyAction } from '$lib/keyboard';
+	import { copyText, plainText, tap } from '$lib/native';
 	import { parseText } from '$lib/calc/entry';
 	import { editor } from '$lib/stores/editor.svelte';
 	import { nav } from '$lib/stores/nav.svelte';
@@ -110,8 +111,21 @@
 	}
 	const resultText = (line: C.TapeLine) => formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text;
 
-	// Physical keyboard: only while no sheet or field editor is open.
+	// Tap the answer (or Cmd/Ctrl+C) to copy it as plain text.
 	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+	async function copyAnswer() {
+		const text = shown ? shown.text : expr;
+		if (!text) return;
+		if (await copyText(plainText(text))) {
+			tap();
+			copied = true;
+			if (copiedTimer) clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = false), 1400);
+		}
+	}
+
+	// Physical keyboard: only while no sheet or field editor is open.
 	async function onKeydown(e: KeyboardEvent) {
 		if (tapeOpen || unitOpen || precOpen || memOpen || nav.open || editor.req) return;
 		const a = keyAction(e);
@@ -142,17 +156,9 @@
 			case 'var':
 				if (vars[a.name as C.VarName]) set(C.useVar(s, a.name as C.VarName));
 				break;
-			case 'copy': {
-				const text = shown ? shown.text : big;
-				try {
-					await navigator.clipboard.writeText(text);
-					copied = true;
-					setTimeout(() => (copied = false), 1200);
-				} catch {
-					/* clipboard blocked */
-				}
+			case 'copy':
+				await copyAnswer();
 				break;
-			}
 			case 'paste': {
 				try {
 					const v = parseText(await navigator.clipboard.readText());
@@ -203,16 +209,16 @@
 
 	<section class="display" aria-live="polite">
 		<div class="expr num">{s.done ? (s.tape[0]?.expr ?? '') : ' '}</div>
-		<div class="result num" class:done={!!shown} class:formula={!shown} style="font-size:{size}rem">
+		<button class="result num" class:done={!!shown} class:formula={!shown} style="font-size:{size}rem" onclick={copyAnswer} disabled={!shown} aria-label={shown ? `Answer ${shown.text}, tap to copy` : undefined}>
 			{#if shown?.rounded}<span class="approx" title="Rounded to {frac(1, den)}″">≈</span>{/if}{big}
-		</div>
+		</button>
 		<div class="meta">
 			{#if copied}
-				<span class="kind">Copied</span>
+				<span class="copied">Copied</span>
 			{:else if error}
 				<span class="error">{error}</span>
-			{:else if value && value.d > 0}
-				<span class="kind">{dimOf(value.d)}</span>
+			{:else if value}
+				<span class="kind">{value.d > 0 ? `${dimOf(value.d)} · ` : ''}tap to copy</span>
 			{/if}
 		</div>
 		{#if value && value.d > 0}
@@ -413,6 +419,26 @@
 	}
 	.result.done {
 		color: var(--text);
+	}
+	button.result {
+		display: block;
+		width: 100%;
+		text-align: right;
+		font-family: var(--font-num);
+	}
+	button.result:disabled {
+		opacity: 1;
+		cursor: default;
+	}
+	button.result.done:active {
+		opacity: 0.6;
+	}
+	.copied {
+		color: var(--primary-text);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		font-size: 0.72rem;
 	}
 	.result.formula {
 		color: var(--text);
