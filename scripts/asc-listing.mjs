@@ -100,9 +100,26 @@ else {
 	await patch('ageRatingDeclarations', age.id, ageAttributes);
 }
 
-// Price: free, if no price schedule exists yet.
+// Availability: every territory, and new ones as Apple adds them; only if
+// it was never set.
+const availability = await api(`/apps/${app.id}/appAvailabilityV2`).catch(() => null);
+if (!availability?.data) {
+	step('availability: all territories');
+	const territories = (await api('/territories?limit=200')).data;
+	await api('/v2/appAvailabilities', { method: 'POST', body: {
+		data: { type: 'appAvailabilities', attributes: { availableInNewTerritories: true }, relationships: {
+			app: { data: { type: 'apps', id: app.id } },
+			territoryAvailabilities: { data: territories.map((t) => ({ type: 'territoryAvailabilities', id: `\${${t.id}}` })) } } },
+		included: territories.map((t) => ({ type: 'territoryAvailabilities', id: `\${${t.id}}`, attributes: { available: true },
+			relationships: { territory: { data: { type: 'territories', id: t.id } } } })) } })
+		.catch((e) => console.log(`    could not set availability (${e.message.slice(0, 200)}): set it by hand`));
+}
+
+// Price: free, if no price was ever set (the schedule exists from the start,
+// empty).
 const schedule = await api(`/apps/${app.id}/appPriceSchedule`).catch(() => null);
-if (!schedule?.data) {
+const prices = schedule?.data ? await api(`/appPriceSchedules/${schedule.data.id}/manualPrices`).catch(() => null) : null;
+if (!prices?.data?.length) {
 	step('price: free (base territory USA)');
 	const free = (await api(`/apps/${app.id}/appPricePoints?filter[territory]=USA&limit=200`)).data.find((p) => Number(p.attributes.customerPrice) === 0);
 	if (!free) console.log('    no free price point found: set the price by hand');
@@ -200,4 +217,4 @@ for (const platform of platforms) {
 }
 
 console.log(`done: ${platforms.join(' + ')} ${version} drafts filled. By hand in App Store Connect: App Privacy`);
-console.log('("Data Not Collected"), availability, review contact if not set, then Add for Review.');
+console.log('("Data Not Collected"), the review contact if not set, then Add for Review.');

@@ -1,0 +1,9 @@
+# One clip per line, in scene order (see make_promo.py SCENES).
+Still adding feet and inches on a scrap of drywall?
+Meet A-two Calc. Feet, inches and fractions, like a tape measure that went to college.
+Lay out your walls, and it frames every stud and header.
+Slide a window, and the whole wall reframes itself, live, in 3D.
+Block walls? Grout and lintels, figured out.
+Concrete? Rounded up to what you actually order.
+Free, open source, no ads, and nothing leaves your phone.
+A-two Takeoff Calc. Measure twice, calculate once.
