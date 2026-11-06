@@ -176,3 +176,21 @@ What to check
 
 - Block wall at 48″: add a door and a wide window; look at the lintels
   in the wall drawing and in 3D, and the Lintels line in the results.
+
+## 0.1.10 (50), 2026-11-06
+
+Block wall lintels can be grouted or poured; terms of use and privacy policy added.
+
+What changed
+
+- Block wall: choose lintel block, grouted (in the grout order) or
+  formed and poured (concrete on its own line; no grout or block there).
+- Block wall: wall height has its own Wall section with quick picks.
+- Terms of Use (use at your own risk) and Privacy Policy (nothing is
+  collected), linked from About and the welcome screen.
+
+What to check
+
+- Block wall with a door: switch the lintel between grouted and poured
+  and watch the results, the wall drawing and 3D.
+- About: open Terms of Use and Privacy Policy.
