@@ -151,6 +151,21 @@
 		}
 	}
 
+	// The Mac app's Edit menu: Copy gives the answer (or the formula), Paste
+	// puts a typed value like 8' 4 1/2" in as the current number.
+	$effect(() => {
+		const w = window as unknown as { __a2calc?: object };
+		w.__a2calc = {
+			copyText: () => (shown ? shown.text : expr || null),
+			paste: (text: string) => {
+				const v = parseText(text);
+				if (v) set(C.insert(calc.s, v, den));
+				return !!v;
+			}
+		};
+		return () => delete w.__a2calc;
+	});
+
 	const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 	const dimOf = (d: Dim) => (d === 0 ? '' : DIM_NAME[d]);
 </script>

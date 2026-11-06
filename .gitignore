@@ -47,3 +47,7 @@ ios/App/App/Config/Build.xcconfig
 
 # Python bytecode from the release scripts
 __pycache__/
+
+# macOS: generated from macos/project.yml and config/app.json
+macos/A2Calc.xcodeproj/
+macos/Config.generated.xcconfig

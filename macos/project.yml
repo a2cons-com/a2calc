@@ -1,0 +1,33 @@
+# The macOS app: a native AppKit window and menu bar around the same web
+# build the iOS and Android apps use. Generate the Xcode project with
+#   xcodegen generate --spec macos/project.yml
+# (scripts/mac-release.sh and scripts/build-mac.sh do it). Identity and
+# version come from config/app.json through Config.generated.xcconfig.
+name: A2Calc
+options:
+  bundleIdPrefix: com.a2cons
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config.generated.xcconfig
+  Release: Config.generated.xcconfig
+targets:
+  A2Calc:
+    type: application
+    platform: macOS
+    sources:
+      - path: A2Calc
+      - path: ../build
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: A2 Calc
+        INFOPLIST_FILE: A2Calc/Info.plist
+        CODE_SIGN_ENTITLEMENTS: A2Calc/A2Calc.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+        COMBINE_HIDPI_IMAGES: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
