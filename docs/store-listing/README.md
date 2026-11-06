@@ -8,6 +8,7 @@ Everything the App Store and Google Play listings need, in one place.
 | `screenshots/APP_IPHONE_67`, `APP_IPAD_PRO_3GEN_129`, `APP_DESKTOP` | App Store: iPhone 6.9" (1320x2868), iPad 13" (2048x2732), Mac (2880x1800) |
 | `play/phone`, `play/tablet7`, `play/tablet10`, `play/feature-graphic.png`, `play/icon-512.png` | Google Play graphics |
 | `video/a2calc-promo.mp4` | 30 s vertical promo (1080x1920) for social media and the website |
+| `video/a2calc-promo-trucks.mp4` | The second, funnier promo ("One truck. The right truck."), 34 s, 1080x1920 |
 | `video/a2calc-app-preview.mp4` | The same cut at 886x1920, within Apple's app preview specs (not uploaded) |
 
 Regenerate the screenshots with `scripts/store/` (see `shots.cjs`), the
