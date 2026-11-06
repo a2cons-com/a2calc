@@ -33,6 +33,18 @@
 	});
 
 	onMount(async () => {
+		// Windows app (Tauri): a link that opens a new window would be
+		// dropped there, so send outside links through the main window, where
+		// the app hands them to the default browser.
+		if ('__TAURI_INTERNALS__' in window) {
+			document.addEventListener('click', (e) => {
+				const a = (e.target as HTMLElement | null)?.closest?.('a[target="_blank"]') as HTMLAnchorElement | null;
+				if (a && a.href && new URL(a.href).origin !== location.origin) {
+					e.preventDefault();
+					location.href = a.href;
+				}
+			});
+		}
 		if (!isNative()) return;
 		const { SplashScreen } = await import('@capacitor/splash-screen');
 		SplashScreen.hide().catch(() => {});

@@ -1,0 +1,26 @@
+[package]
+name = "a2-calc"
+version = "0.1.0"
+description = "A2 Calc: feet-inch-fraction calculator and takeoffs"
+authors = ["A2 Labs"]
+edition = "2021"
+publish = false
+
+# The Windows app: Tauri around the shared web build, shown in the system's
+# WebView2 (no browser engine is bundled). Built by
+# .github/workflows/windows.yml; the version is set from config/app.json
+# at build time.
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+open = "5"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

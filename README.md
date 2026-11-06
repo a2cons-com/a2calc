@@ -26,7 +26,15 @@ Release builds: `scripts/testflight.sh` (TestFlight; needs
 `secrets/testflight.env`, see `secrets.env.example`) and
 `scripts/play-release.sh` (Play Internal testing; needs `secrets/play.env`
 with `PLAY_KEY_PATH` and `android/keystore.properties` for the upload key).
-Both read the build notes from `WHATS_NEW.md`.
+Both read the build notes from `WHATS_NEW.md`. The Mac app
+(`macos/`, a native AppKit window around the same web build) uploads with
+`scripts/mac-release.sh`.
+
+Windows: `windows/` is a Tauri app around the same web build, shown in the
+system's WebView2. GitHub Actions builds it (`.github/workflows/windows.yml`);
+pushing a version tag such as `v0.1.2` attaches an installer and a
+standalone `.exe` to that release. The exe is not code-signed, so Windows
+shows a SmartScreen prompt the first time (More info, then Run anyway).
 
 ## Notes
 

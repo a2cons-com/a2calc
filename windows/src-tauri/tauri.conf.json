@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "A2 Calc",
+  "version": "0.1.0",
+  "identifier": "com.a2cons.calc",
+  "build": {
+    "frontendDist": "../../build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "A2 Labs",
+    "copyright": "© 2026 A2 Labs",
+    "category": "Utility",
+    "shortDescription": "Feet-inch-fraction calculator with concrete, block grout and stud wall takeoffs",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}
