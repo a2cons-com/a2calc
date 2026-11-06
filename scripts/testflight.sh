@@ -49,27 +49,7 @@ AUTH_ARGS=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY
 [ "$CHECK_ONLY" = 1 ] && { log "credentials OK"; exit 0; }
 : "${DIST_PROFILE:?DIST_PROFILE is not set: run node scripts/asc-profiles.mjs and add its line to secrets/testflight.env}"
 
-# The signing keychain goes first in the search list for the run; the list
-# is restored and the keychain locked again on exit.
-if [ -n "${SIGN_KEYCHAIN:-}" ] && [ -f "$SIGN_KEYCHAIN" ]; then
-  PASS_VAR="${SIGN_KEYCHAIN_PASSWORD_VAR:-}"
-  [ -n "$PASS_VAR" ] && [ -n "${!PASS_VAR:-}" ] || die "SIGN_KEYCHAIN is set but its password variable (\$SIGN_KEYCHAIN_PASSWORD_VAR) is empty"
-  security unlock-keychain -p "${!PASS_VAR}" "$SIGN_KEYCHAIN" || die "could not unlock $SIGN_KEYCHAIN"
-  ORIGINAL_KEYCHAINS=()
-  while IFS= read -r line; do
-    line="${line#"${line%%[![:space:]]*}"}"; line="${line%\"}"; line="${line#\"}"
-    [ -n "$line" ] && [ "$line" != "$SIGN_KEYCHAIN" ] && ORIGINAL_KEYCHAINS+=("$line")
-  done < <(security list-keychains -d user)
-  security list-keychains -d user -s "$SIGN_KEYCHAIN" "${ORIGINAL_KEYCHAINS[@]}"
-  restore_keychains() {
-    security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}" "$SIGN_KEYCHAIN"
-    security lock-keychain "$SIGN_KEYCHAIN" 2>/dev/null || true
-  }
-  trap restore_keychains EXIT
-  log "signing from $(basename "$SIGN_KEYCHAIN")"
-else
-  SIGN_KEYCHAIN=""
-fi
+sign_keychain_begin
 
 if [ "$UPLOAD" = 1 ] && [ "$BUMP" = 1 ]; then
   [ -z "$(git -C "$ROOT" status --porcelain)" ] || die "working tree is dirty; commit first (the version bump is committed on its own)"

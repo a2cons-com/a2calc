@@ -16,6 +16,7 @@
 		"cap:sync": "npm run config && npm run build && cap sync",
 		"android:debug": "scripts/build-android.sh",
 		"play": "scripts/play-release.sh",
+		"mac": "scripts/mac-release.sh",
 		"cap:open": "cap open ios",
 		"ios:sim": "scripts/build-sim.sh",
 		"testflight": "scripts/testflight.sh"

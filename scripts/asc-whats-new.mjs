@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // Sets the TestFlight "What to Test" note of an uploaded build from
 // WHATS_NEW.md (the label stands in when there are no notes).
-// Usage: asc-whats-new.mjs <version> <build> <label> [notes-file]
+// Usage: asc-whats-new.mjs <version> <build> <label> [notes-file] [IOS|MAC_OS]
 // Reads ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH from the environment
 // (scripts/testflight.sh loads secrets/testflight.env first). Waits for the
 // build to appear in App Store Connect (processing can take minutes).
 import { readFileSync } from 'node:fs';
 import { createSign } from 'node:crypto';
 
-const [version, build, label, notesFile] = process.argv.slice(2);
+const [version, build, label, notesFile, platform = 'IOS'] = process.argv.slice(2);
 let notes = '';
 if (notesFile) {
 	try {
@@ -53,7 +53,7 @@ const bundleId = JSON.parse(readFileSync(new URL('../config/app.json', import.me
 const app = (await api(`/v1/apps?filter[bundleId]=${bundleId}`)).data[0];
 let found = null;
 for (let i = 0; i < 40 && !found; i++) {
-	const builds = await api(`/v1/builds?filter[app]=${app.id}&filter[version]=${build}&filter[preReleaseVersion.version]=${version}&limit=1`);
+	const builds = await api(`/v1/builds?filter[app]=${app.id}&filter[version]=${build}&filter[preReleaseVersion.version]=${version}&filter[preReleaseVersion.platform]=${platform}&limit=1`);
 	found = builds.data?.[0] ?? null;
 	if (!found) await new Promise((r) => setTimeout(r, 30_000));
 }
