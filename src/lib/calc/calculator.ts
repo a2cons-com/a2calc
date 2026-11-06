@@ -142,11 +142,12 @@ export function live(s: CalcState): { value: Quantity | null; error: string | nu
 }
 
 
-export type Fn = 'sq' | 'sqrt' | 'neg';
+export type Fn = 'sq' | 'cube' | 'sqrt' | 'neg';
 
 /** One-value functions on the number being typed (or the last answer):
- *  x² doubles the dimension (a length squared is an area), √ halves it
- *  (an area's root is a length), ± flips the sign. */
+ *  x² doubles the dimension (a length squared is an area), x³ triples it
+ *  (a length cubed is a volume), √ halves it (an area's root is a length),
+ *  ± flips the sign. */
 export function fn(s: CalcState, f: Fn, den: number): CalcState {
 	const fromDone = s.done !== null;
 	const last = s.tokens[s.tokens.length - 1];
@@ -160,6 +161,10 @@ export function fn(s: CalcState, f: Fn, den: number): CalcState {
 			if (x.d * 2 > 3) throw new CalcError('Beyond volume');
 			v = { v: x.v * x.v, d: (x.d * 2) as Dim };
 			label = `(${text})²`;
+		} else if (f === 'cube') {
+			if (x.d * 3 > 3) throw new CalcError('Beyond volume');
+			v = { v: x.v * x.v * x.v, d: (x.d * 3) as Dim };
+			label = `(${text})³`;
 		} else if (f === 'sqrt') {
 			if (x.v < 0) throw new CalcError("Can't take the root of a negative");
 			if (x.d % 2) throw new CalcError(x.d === 1 ? 'Root of a length has no unit' : 'Root of a volume has no unit');

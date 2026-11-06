@@ -49,7 +49,7 @@
 		mq.addEventListener('change', update);
 		return () => mq.removeEventListener('change', update);
 	});
-	function onfn(f: 'sq' | 'sqrt' | 'neg' | 'pi') {
+	function onfn(f: 'sq' | 'cube' | 'sqrt' | 'neg' | 'pi') {
 		set(f === 'pi' ? C.pi(s) : C.fn(s, f, den));
 	}
 	const resultText = (line: C.TapeLine) => formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text;
@@ -124,6 +124,7 @@
 			onunit={() => (unitOpen = true)}
 			wide={landscape}
 			{onfn}
+			onquick={pickUnit}
 		/>
 	</section>
 </div>
@@ -278,7 +279,7 @@
 	}
 	.keys {
 		flex: 0 0 auto;
-		height: min(470px, 58dvh);
+		height: min(520px, 62dvh);
 	}
 	.left {
 		display: contents;

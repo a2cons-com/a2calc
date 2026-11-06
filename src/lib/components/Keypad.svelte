@@ -8,6 +8,8 @@
 	import { tap } from '$lib/native';
 	import Icon from './Icon.svelte';
 
+	type Fx = 'sq' | 'cube' | 'sqrt' | 'neg' | 'pi';
+
 	let {
 		mode = 'calc',
 		can,
@@ -20,6 +22,7 @@
 		onunit,
 		ondone,
 		onfn,
+		onquick,
 		wide = false,
 		unitEnabled = true
 	}: {
@@ -33,8 +36,10 @@
 		onequals?: () => void;
 		onunit?: () => void;
 		ondone?: () => void;
-		/** Landscape: an extra column of x², √, ±, π. */
-		onfn?: (f: 'sq' | 'sqrt' | 'neg' | 'pi') => void;
+		/** Landscape: the quick units and x² x³ √ as a column on the left. */
+		onfn?: (f: Fx) => void;
+		/** One-tap unit tags for the number just typed (5 then ft³). */
+		onquick?: (u: 'sqft' | 'cuft' | 'cuyd') => void;
 		wide?: boolean;
 		unitEnabled?: boolean;
 	} = $props();
@@ -64,34 +69,48 @@
 	>
 {/snippet}
 
-{#snippet fnKey(f: 'sq' | 'sqrt' | 'neg' | 'pi', label: string, aria: string)}
+{#snippet quickKey(u: 'sqft' | 'cuft' | 'cuyd', label: string, aria: string)}
+	<button class="key quick" aria-label={aria} disabled={!unitEnabled} onclick={() => { tap(); onquick?.(u); }}>{label}</button>
+{/snippet}
+{#snippet fnKey(f: Fx, label: string, aria: string)}
 	<button class="key fx" aria-label={aria} onclick={() => { tap(); onfn?.(f); }}>{label}</button>
 {/snippet}
 
 {#if mode === 'calc' && wide}
 	<div class="pad calc wide">
-		{@render fnKey('sq', 'x²', 'Square')}
-		<button class="key fn span2" onclick={() => { tap(true); onclear?.(); }}>AC</button>
+		{@render quickKey('sqft', 'ft²', 'Square feet')}
+		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
+		<button class="key fn small" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={24} /></button>
 		{@render opKey('÷')}
 
-		{@render fnKey('sqrt', '√', 'Square root')}
+		{@render quickKey('cuft', 'ft³', 'Cubic feet')}
 		{@render unitKey('ft', '′', 'feet')}
 		{@render unitKey('in', '″', 'inch')}
 		{@render unitKey('frac', '⁄', 'fraction')}
 		{@render opKey('×')}
 
-		{@render fnKey('neg', '±', 'Change sign')}
+		{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
 		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
-		{@render fnKey('pi', 'π', 'Pi')}
+		{@render fnKey('sq', 'x²', 'Square')}
 		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
-		<button class="key fn small tall" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
+		{@render fnKey('cube', 'x³', 'Cube')}
 		{@render digit('1')}{@render digit('2')}{@render digit('3')}
 		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
+		{@render fnKey('sqrt', '√', 'Square root')}
 		{@render digit('0', 'wide-key')}{@render digit('.')}
 	</div>
 {:else if mode === 'calc'}
 	<div class="pad calc">
+		<div class="strip">
+			{@render quickKey('sqft', 'ft²', 'Square feet')}
+			{@render quickKey('cuft', 'ft³', 'Cubic feet')}
+			{@render quickKey('cuyd', 'yd³', 'Cubic yards')}
+			<span class="gap"></span>
+			{@render fnKey('sq', 'x²', 'Square')}
+			{@render fnKey('cube', 'x³', 'Cube')}
+			{@render fnKey('sqrt', '√', 'Square root')}
+		</div>
 		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={26} /></button>
 		<button class="key fn small" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
@@ -127,7 +146,26 @@
 		height: 100%;
 	}
 	.calc {
-		grid-template-rows: 0.8fr 0.9fr repeat(4, 1fr);
+		grid-template-rows: 0.6fr 0.8fr 0.9fr repeat(4, 1fr);
+	}
+	/* Portrait: quick units and x² x³ √ as a slim strip over the keys. */
+	.strip {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr) 4px repeat(3, 1fr);
+		gap: 6px;
+		min-height: 0;
+	}
+	.quick {
+		background: var(--key-unit);
+		color: var(--primary-text);
+		font-family: var(--font);
+		font-size: 1.1rem;
+		font-weight: 650;
+	}
+	.strip .key {
+		border-radius: 14px;
+		font-size: 1.15rem;
 	}
 	.input {
 		grid-template-rows: repeat(4, minmax(40px, 1fr));
@@ -162,9 +200,16 @@
 		grid-template-rows: repeat(6, 1fr);
 		gap: 7px;
 	}
+	.calc.wide .strip {
+		display: none;
+	}
 	.calc.wide .key {
 		border-radius: 14px;
 		font-size: 1.4rem;
+	}
+	.calc.wide .quick,
+	.calc.wide .fx {
+		font-size: 1.1rem;
 	}
 	.calc.wide .unit .glyph {
 		font-size: 1.5rem;
@@ -178,9 +223,7 @@
 		font-size: 1.3rem;
 		font-weight: 600;
 	}
-	.tall {
-		grid-row: span 2;
-	}
+
 	.fn {
 		background: var(--key-fn);
 		font-size: 1.2rem;

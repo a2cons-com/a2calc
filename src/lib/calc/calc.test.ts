@@ -150,6 +150,11 @@ describe('calculator', () => {
 		d = C.fn(d, 'sqrt', 16);
 		expect(d.done).toEqual({ v: 60, d: 1 });
 	});
+	it('cubes a length into a volume', () => {
+		const s = C.equals(C.fn(keys(C.initialState(), `3'`), 'cube', 16));
+		expect(toUnit(s.done!, 'cuyd')).toBeCloseTo(1);
+		expect(C.fn(keys(C.initialState(), `3'×3'=`), 'cube', 16).error).toMatch(/Beyond volume/);
+	});
 	it('negates and inserts pi', () => {
 		const s = C.equals(C.fn(keys(C.initialState(), `2'`), 'neg', 16));
 		expect(s.done).toEqual({ v: -24, d: 1 });
