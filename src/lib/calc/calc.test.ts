@@ -133,4 +133,27 @@ describe('calculator', () => {
 		s = C.back(s);
 		expect(C.exprText(s)).toBe('5′');
 	});
+	it('squares and roots with units', () => {
+		let s = keys(C.initialState(), `12'`);
+		s = C.fn(s, 'sq', 16);
+		s = C.equals(s);
+		expect(toUnit(s.done!, 'sqft')).toBeCloseTo(144);
+		s = C.fn(s, 'sqrt', 16);
+		expect(s.done).toEqual({ v: 144, d: 1 });
+		expect(s.tape[0].expr).toBe('√(144 sq ft)');
+		expect(C.fn(keys(C.initialState(), `5'`), 'sqrt', 16).error).toMatch(/no unit/);
+		// diagonal of a 3' × 4' corner: √(3'² + 4'²) = 5'
+		let d = C.fn(keys(C.initialState(), `3'`), 'sq', 16);
+		d = keys(d, `+4'`);
+		d = C.fn(d, 'sq', 16);
+		d = C.equals(d);
+		d = C.fn(d, 'sqrt', 16);
+		expect(d.done).toEqual({ v: 60, d: 1 });
+	});
+	it('negates and inserts pi', () => {
+		const s = C.equals(C.fn(keys(C.initialState(), `2'`), 'neg', 16));
+		expect(s.done).toEqual({ v: -24, d: 1 });
+		const p = keys(C.pi(C.initialState()), `×2=`);
+		expect(p.done!.v).toBeCloseTo(2 * Math.PI);
+	});
 });

@@ -1,9 +1,9 @@
 // The basic calculator's state machine, kept free of UI so it can be
 // tested: keys go in, the expression / live result / tape come out.
 
-import { backspace, canPress, emptyEntry, isEmpty, press, type Entry, type EntryKey } from './entry';
+import { backspace, canPress, emptyEntry, entryValue, isEmpty, press, type Entry, type EntryKey } from './entry';
 import { CalcError, evaluate, tokenText, type Op, type Token } from './expression';
-import { formatAs, defaultFormat, type LengthFormat, type Quantity, type UnitId } from './units';
+import { formatAs, defaultFormat, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
 export interface TapeLine {
 	expr: string;
@@ -141,3 +141,51 @@ export function live(s: CalcState): { value: Quantity | null; error: string | nu
 	}
 }
 
+
+export type Fn = 'sq' | 'sqrt' | 'neg';
+
+/** One-value functions on the number being typed (or the last answer):
+ *  x² doubles the dimension (a length squared is an area), √ halves it
+ *  (an area's root is a length), ± flips the sign. */
+export function fn(s: CalcState, f: Fn, den: number): CalcState {
+	const fromDone = s.done !== null;
+	const last = s.tokens[s.tokens.length - 1];
+	const x = fromDone ? s.done : last.kind === 'entry' ? entryValue(last.entry) : last.kind === 'value' ? last.value : null;
+	if (!x) return s;
+	const text = fromDone ? valueText(x, den) : tokenText(last);
+	let v: Quantity;
+	let label: string;
+	try {
+		if (f === 'sq') {
+			if (x.d * 2 > 3) throw new CalcError('Beyond volume');
+			v = { v: x.v * x.v, d: (x.d * 2) as Dim };
+			label = `(${text})²`;
+		} else if (f === 'sqrt') {
+			if (x.v < 0) throw new CalcError("Can't take the root of a negative");
+			if (x.d % 2) throw new CalcError(x.d === 1 ? 'Root of a length has no unit' : 'Root of a volume has no unit');
+			v = { v: Math.sqrt(x.v), d: (x.d / 2) as Dim };
+			label = `√(${text})`;
+		} else {
+			v = { v: -x.v, d: x.d };
+			label = `−(${text})`;
+		}
+	} catch (e) {
+		if (e instanceof CalcError) return { ...s, error: e.message };
+		throw e;
+	}
+	if (fromDone) {
+		const tape = [{ expr: label, result: v, at: Date.now() }, ...s.tape].slice(0, TAPE_MAX);
+		return { ...s, tokens: [{ kind: 'value', value: v, text: label }], done: v, tape, error: null };
+	}
+	const tokens = [...s.tokens];
+	tokens[tokens.length - 1] = { kind: 'value', value: v, text: label };
+	return { ...s, tokens, error: null };
+}
+
+/** π as the current number. */
+export function pi(s: CalcState): CalcState {
+	const base = s.done ? { ...s, tokens: [{ kind: 'entry', entry: emptyEntry() } as Token], done: null } : s;
+	const tokens = [...base.tokens];
+	tokens[tokens.length - 1] = { kind: 'value', value: { v: Math.PI, d: 0 }, text: 'π' };
+	return { ...base, tokens, error: null };
+}

@@ -40,13 +40,28 @@
 		tapeOpen = false;
 	}
 
+	/** A phone on its side: display and tape left, keypad right. */
+	let landscape = $state(false);
+	$effect(() => {
+		const mq = matchMedia('(orientation: landscape) and (max-height: 540px)');
+		const update = () => (landscape = mq.matches);
+		update();
+		mq.addEventListener('change', update);
+		return () => mq.removeEventListener('change', update);
+	});
+	function onfn(f: 'sq' | 'sqrt' | 'neg' | 'pi') {
+		set(f === 'pi' ? C.pi(s) : C.fn(s, f, den));
+	}
+	const resultText = (line: C.TapeLine) => formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text;
+
 	const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 	const dimOf = (d: Dim) => (d === 0 ? '' : DIM_NAME[d]);
 </script>
 
 <svelte:head><title>A2 Calc</title></svelte:head>
 
-<div class="screen">
+<div class="screen" class:landscape>
+	<div class="left">
 	<header>
 		<Logo size={22} />
 		<span class="title">Calc</span>
@@ -80,6 +95,21 @@
 			<div class="formats placeholder"></div>
 		{/if}
 	</section>
+	{#if landscape}
+		<ul class="mini-tape">
+			{#each s.tape.slice(0, 30) as line (line.at)}
+				<li>
+					<button onclick={() => set(C.insert(s, line.result, den))}>
+						<span class="num m-expr">{line.expr}</span>
+						<span class="num m-res">{resultText(line)}</span>
+					</button>
+				</li>
+			{:else}
+				<li class="fine m-empty">Answers show up here.</li>
+			{/each}
+		</ul>
+	{/if}
+	</div>
 
 	<section class="keys">
 		<Keypad
@@ -92,6 +122,8 @@
 			onop={(o) => set(C.op(s, o, den))}
 			onequals={() => set(C.equals(s))}
 			onunit={() => (unitOpen = true)}
+			wide={landscape}
+			{onfn}
 		/>
 	</section>
 </div>
@@ -110,7 +142,7 @@
 				<li>
 					<button onclick={() => reuse(line)}>
 						<span class="t-expr num">{line.expr}</span>
-						<span class="t-res num">= {formatAs(line.result, line.result.d > 0 ? prefs.fmt[line.result.d as 1 | 2 | 3] : 'ftin', den).text}</span>
+						<span class="t-res num">= {resultText(line)}</span>
 						<span class="t-time">{time(line.at)}</span>
 					</button>
 				</li>
@@ -247,6 +279,71 @@
 	.keys {
 		flex: 0 0 auto;
 		height: min(470px, 58dvh);
+	}
+	.left {
+		display: contents;
+	}
+	.screen.landscape {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+		gap: 18px;
+		max-width: none;
+		padding: calc(env(safe-area-inset-top) + 4px) max(14px, env(safe-area-inset-right)) calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 8px) max(14px, env(safe-area-inset-left));
+	}
+	.landscape .left {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+	.landscape header {
+		height: 40px;
+	}
+	.landscape .display {
+		flex: none;
+		min-height: 0;
+		padding: 0 4px 6px;
+	}
+	.landscape .expr {
+		max-height: 2.6em;
+	}
+	.landscape .formats {
+		margin-top: 4px;
+	}
+	.landscape .keys {
+		height: auto;
+		min-height: 0;
+	}
+	.mini-tape {
+		list-style: none;
+		margin: 4px 0 0;
+		padding: 0;
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		border-top: 1px solid var(--border);
+	}
+	.mini-tape button {
+		width: 100%;
+		display: flex;
+		justify-content: space-between;
+		gap: 10px;
+		padding: 7px 4px;
+		text-align: left;
+		border-bottom: 1px solid var(--border);
+	}
+	.m-expr {
+		color: var(--muted);
+		font-size: 0.85rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.m-res {
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.m-empty {
+		padding: 10px 4px;
 	}
 	.tape {
 		list-style: none;

@@ -48,6 +48,7 @@
 
 <Sheet bind:open title={req?.label ?? ''}>
 	{#if req}
+	<div class="wrap">
 		<div class="readout">
 			<div class="now num" class:typing={entry.raw !== ''}>
 				{#if entry.raw !== ''}
@@ -71,6 +72,7 @@
 		<div class="pad">
 			<Keypad mode="input" {can} allowLength={req.kind === 'length'} onkey={(k) => (entry = press(entry, k))} onback={() => (entry = backspace(entry))} ondone={done} />
 		</div>
+	</div>
 	{/if}
 </Sheet>
 
@@ -109,5 +111,16 @@
 	}
 	.pad {
 		height: min(340px, 46dvh);
+	}
+	@media (orientation: landscape) and (max-height: 540px) {
+		.wrap {
+			display: grid;
+			grid-template-columns: 1fr 1.2fr;
+			gap: 14px;
+			align-items: start;
+		}
+		.pad {
+			height: calc(88dvh - 90px - env(safe-area-inset-bottom));
+		}
 	}
 </style>

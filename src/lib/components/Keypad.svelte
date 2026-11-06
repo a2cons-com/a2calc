@@ -19,6 +19,8 @@
 		onequals,
 		onunit,
 		ondone,
+		onfn,
+		wide = false,
 		unitEnabled = true
 	}: {
 		mode?: 'calc' | 'input';
@@ -31,6 +33,9 @@
 		onequals?: () => void;
 		onunit?: () => void;
 		ondone?: () => void;
+		/** Landscape: an extra column of x², √, ±, π. */
+		onfn?: (f: 'sq' | 'sqrt' | 'neg' | 'pi') => void;
+		wide?: boolean;
 		unitEnabled?: boolean;
 	} = $props();
 
@@ -59,7 +64,33 @@
 	>
 {/snippet}
 
-{#if mode === 'calc'}
+{#snippet fnKey(f: 'sq' | 'sqrt' | 'neg' | 'pi', label: string, aria: string)}
+	<button class="key fx" aria-label={aria} onclick={() => { tap(); onfn?.(f); }}>{label}</button>
+{/snippet}
+
+{#if mode === 'calc' && wide}
+	<div class="pad calc wide">
+		{@render fnKey('sq', 'x²', 'Square')}
+		<button class="key fn span2" onclick={() => { tap(true); onclear?.(); }}>AC</button>
+		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={24} /></button>
+		{@render opKey('÷')}
+
+		{@render fnKey('sqrt', '√', 'Square root')}
+		{@render unitKey('ft', '′', 'feet')}
+		{@render unitKey('in', '″', 'inch')}
+		{@render unitKey('frac', '⁄', 'fraction')}
+		{@render opKey('×')}
+
+		{@render fnKey('neg', '±', 'Change sign')}
+		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
+		{@render fnKey('pi', 'π', 'Pi')}
+		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
+		<button class="key fn small tall" disabled={!unitEnabled} onclick={() => { tap(); onunit?.(); }}>Unit</button>
+		{@render digit('1')}{@render digit('2')}{@render digit('3')}
+		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
+		{@render digit('0', 'wide-key')}{@render digit('.')}
+	</div>
+{:else if mode === 'calc'}
 	<div class="pad calc">
 		<button class="key fn" onclick={() => { tap(true); onclear?.(); }}>AC</button>
 		<button class="key fn" onclick={() => { tap(); onback(); }} aria-label="Backspace"><Icon name="backspace" size={26} /></button>
@@ -75,7 +106,7 @@
 		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
 		{@render digit('1')}{@render digit('2')}{@render digit('3')}
 		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
-		{@render digit('0', 'wide')}{@render digit('.')}
+		{@render digit('0', 'wide-key')}{@render digit('.')}
 	</div>
 {:else}
 	<div class="pad input">
@@ -99,7 +130,7 @@
 		grid-template-rows: 0.8fr 0.9fr repeat(4, 1fr);
 	}
 	.input {
-		grid-template-rows: repeat(4, minmax(58px, 1fr));
+		grid-template-rows: repeat(4, minmax(40px, 1fr));
 	}
 	.key {
 		border-radius: 18px;
@@ -122,8 +153,33 @@
 	.digit {
 		background: var(--key-digit);
 	}
-	.wide {
+	.wide-key,
+	.span2 {
 		grid-column: span 2;
+	}
+	.calc.wide {
+		grid-template-columns: 0.85fr repeat(4, 1fr);
+		grid-template-rows: repeat(6, 1fr);
+		gap: 7px;
+	}
+	.calc.wide .key {
+		border-radius: 14px;
+		font-size: 1.4rem;
+	}
+	.calc.wide .unit .glyph {
+		font-size: 1.5rem;
+	}
+	.calc.wide .unit .cap {
+		display: none;
+	}
+	.fx {
+		background: var(--key-fn);
+		color: var(--primary-text);
+		font-size: 1.3rem;
+		font-weight: 600;
+	}
+	.tall {
+		grid-row: span 2;
 	}
 	.fn {
 		background: var(--key-fn);
@@ -169,5 +225,10 @@
 	}
 	.calc .eq {
 		grid-row: span 2;
+	}
+	.eq.small {
+		font-family: var(--font);
+		font-size: 1.15rem;
+		font-weight: 650;
 	}
 </style>

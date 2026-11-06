@@ -93,6 +93,17 @@
 	.tabbar a.on {
 		color: var(--primary-text);
 	}
+	/* On its side the tab bar gets slim: icon and label in one line. */
+	@media (orientation: landscape) and (max-height: 540px) {
+		:global(:root) {
+			--tabbar-h: 40px;
+		}
+		.tabbar a {
+			flex-direction: row;
+			gap: 6px;
+			font-size: 0.8rem;
+		}
+	}
 	.welcome {
 		display: flex;
 		flex-direction: column;
