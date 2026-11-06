@@ -45,6 +45,11 @@ export interface Run {
 	id: number;
 	length: number;
 	openings: Opening[];
+	/** Which way this wall turns from the one before it (for the first
+	 *  wall: from the last, when the walls close). Right by default, so
+	 *  walls added one after another go around a room clockwise. Only the
+	 *  floor plan and the 3D view use it. */
+	turn?: 'left' | 'right';
 }
 
 export interface WallInput {

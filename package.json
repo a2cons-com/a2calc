@@ -29,6 +29,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tauri-apps/cli": "^2.12.4",
 		"@types/node": "^22.20.3",
+		"@types/three": "^0.187.0",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
@@ -42,6 +43,7 @@
 		"@capacitor/haptics": "^8.0.1",
 		"@capacitor/ios": "^8.5.1",
 		"@capacitor/splash-screen": "^8.0.2",
-		"@capacitor/status-bar": "^8.0.3"
+		"@capacitor/status-bar": "^8.0.3",
+		"three": "^0.187.0"
 	}
 }
