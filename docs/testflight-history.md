@@ -194,3 +194,17 @@ What to check
 - Block wall with a door: switch the lintel between grouted and poured
   and watch the results, the wall drawing and 3D.
 - About: open Terms of Use and Privacy Policy.
+
+## 0.2.0 (53), 2026-11-06
+
+0.2.0: the release candidate for the App Store and Google Play.
+
+What changed
+
+- Version 0.2.0, the first public version
+- Terms and Privacy give A2 Labs support (support@a2cons.com) as the contact
+
+What to check
+
+- About > Terms of Use and Privacy Policy show the support email
+- Everything else as in 0.1.10: calculator, the three takeoffs with Plan and 3D
