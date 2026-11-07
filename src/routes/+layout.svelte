@@ -19,16 +19,23 @@
 
 	// Every screen, behind the menu button in each header: the calculator
 	// keeps the whole screen.
-	const MENU = [
-		{ href: '/', label: 'Calculator', icon: 'calc' },
-		{ href: '/convert', label: 'Convert', icon: 'convert' },
-		{ href: '/projects', label: 'Projects', icon: 'folder' },
-		{ section: 'Takeoff' },
-		{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
-		{ href: '/takeoff/grout', label: 'Block fill grout', icon: 'brick' },
-		{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' },
-		{ section: '' },
-		{ href: '/about', label: 'About and help', icon: 'info' }
+	const MENU: { title: string; items: { href: string; label: string; icon: string }[] }[] = [
+		{
+			title: '',
+			items: [
+				{ href: '/', label: 'Calculator', icon: 'calc' },
+				{ href: '/convert', label: 'Convert', icon: 'convert' },
+				{ href: '/projects', label: 'Projects', icon: 'folder' }
+			]
+		},
+		{
+			title: 'Takeoff',
+			items: [
+				{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
+				{ href: '/takeoff/grout', label: 'Block grout', icon: 'brick' },
+				{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' }
+			]
+		}
 	];
 	const active = (href: string) => page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href + '/'));
 
@@ -88,16 +95,20 @@
 
 <Sheet bind:open={nav.open} title="">
 	<nav class="menu" aria-label="Screens">
-		{#each MENU as m, i (i)}
-			{#if 'section' in m}
-				{#if m.section}<div class="section-title">{m.section}</div>{:else}<div class="gap"></div>{/if}
-			{:else}
-				<a href={m.href} class:on={active(m.href ?? '')} aria-current={active(m.href ?? '') ? 'page' : undefined} onclick={() => (nav.open = false)}>
-					<span class="ico"><Icon name={m.icon ?? ''} size={22} /></span>
-					<span>{m.label}</span>
-				</a>
-			{/if}
+		{#each MENU as g (g.title)}
+			{#if g.title}<div class="section-title">{g.title}</div>{/if}
+			<div class="tiles">
+				{#each g.items as m (m.href)}
+					<a href={m.href} class="tile" class:on={active(m.href)} aria-current={active(m.href) ? 'page' : undefined} onclick={() => (nav.open = false)}>
+						<span class="ico"><Icon name={m.icon} size={30} /></span>
+						<span class="lbl">{m.label}</span>
+					</a>
+				{/each}
+			</div>
 		{/each}
+		<a href="/about" class="row" class:on={active('/about')} onclick={() => (nav.open = false)}>
+			<Icon name="info" size={20} /><span>About and help</span>
+		</a>
 	</nav>
 	<div class="theme">
 		<span class="section-title">Appearance</span>
@@ -136,39 +147,69 @@
 	.menu {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 4px;
 		padding-bottom: 4px;
 	}
-	.menu a {
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+	.tile {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		gap: 14px;
-		padding: 10px 8px;
-		border-radius: 12px;
+		justify-content: center;
+		gap: 8px;
+		padding: 14px 4px 12px;
+		border-radius: 18px;
+		background: var(--field);
+		border: 1px solid var(--field-border);
 		color: var(--text);
 		text-decoration: none;
 		font-weight: 600;
-		font-size: 1.05rem;
+		font-size: 0.88rem;
+		text-align: center;
+		line-height: 1.15;
 	}
-	.menu a:active {
-		background: var(--surface-2);
+	.tile:active {
+		filter: brightness(0.96);
 	}
-	.menu a.on {
+	.tile .ico {
+		width: 54px;
+		height: 54px;
+		border-radius: 16px;
+		display: grid;
+		place-items: center;
 		background: var(--primary-soft);
 		color: var(--primary-text);
 	}
-	.menu .ico {
-		width: 40px;
-		height: 40px;
+	.tile.on {
+		border-color: var(--primary);
+		background: var(--primary-soft);
+		color: var(--primary-text);
+	}
+	.tile.on .ico {
+		background: var(--primary);
+		color: var(--primary-ink);
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 8px;
+		margin-top: 2px;
 		border-radius: 12px;
-		display: grid;
-		place-items: center;
-		background: var(--surface);
-		border: 1px solid var(--border);
+		color: var(--muted);
+		text-decoration: none;
+		font-weight: 600;
+	}
+	.row.on {
 		color: var(--primary-text);
 	}
 	.menu .section-title {
-		margin: 14px 8px 4px;
+		margin: 6px 4px 6px;
 	}
 	.theme {
 		display: flex;
@@ -182,9 +223,6 @@
 	}
 	.theme .seg {
 		flex: 1;
-	}
-	.menu .gap {
-		height: 10px;
 	}
 	.welcome {
 		display: flex;
