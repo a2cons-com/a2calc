@@ -3,7 +3,8 @@
    dark: html[data-theme] follows the phone, or the choice in the menu
    (set before the first paint by app.html, then by the layout). */
 
-:root {
+:root,
+.theme-light {
 	--green: #006839;
 	--green-dark: #004d2a;
 
@@ -265,6 +266,35 @@ a {
 }
 .btn:active {
 	filter: brightness(0.95);
+}
+.btn.danger {
+	background: transparent;
+	color: var(--danger);
+}
+
+/* The few text fields (project and takeoff names). 16px or more, or iOS
+   zooms the page when one is focused. */
+input.text,
+textarea.text {
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid var(--field-border);
+	background: var(--field);
+	color: var(--text);
+	font: inherit;
+	font-size: 16px;
+	user-select: text;
+	-webkit-user-select: text;
+}
+input.text:focus,
+textarea.text:focus {
+	outline: 2px solid var(--primary);
+	outline-offset: -1px;
+}
+textarea.text {
+	resize: vertical;
+	min-height: 70px;
 }
 
 .warn {

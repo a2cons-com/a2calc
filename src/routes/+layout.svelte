@@ -12,12 +12,17 @@
 	let { children } = $props();
 
 	import { nav } from '$lib/stores/nav.svelte';
+	import { autosave } from '$lib/stores/projects.svelte';
+
+	// Project takeoffs open on a screen are saved as they change.
+	autosave();
 
 	// Every screen, behind the menu button in each header: the calculator
 	// keeps the whole screen.
 	const MENU = [
 		{ href: '/', label: 'Calculator', icon: 'calc' },
 		{ href: '/convert', label: 'Convert', icon: 'convert' },
+		{ href: '/projects', label: 'Projects', icon: 'folder' },
 		{ section: 'Takeoff' },
 		{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
 		{ href: '/takeoff/grout', label: 'Block fill grout', icon: 'brick' },
@@ -25,7 +30,7 @@
 		{ section: '' },
 		{ href: '/about', label: 'About and help', icon: 'info' }
 	];
-	const active = (href: string) => page.url.pathname === href;
+	const active = (href: string) => page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href + '/'));
 
 	// Light or dark: the choice in the menu, or the phone's setting. The
 	// status bar (iOS, Android) and the Mac window follow it.

@@ -66,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         config.setURLSchemeHandler(handler, forURLScheme: scheme)
         config.websiteDataStore = .default()
         config.userContentController.add(self, name: "theme")
+        config.userContentController.add(self, name: "saveFile")
 
         webView = CalcWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
@@ -118,8 +119,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // The page's Appearance choice (system, light or dark): the window's
     // title bar and menus follow it.
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "theme", let theme = message.body as? String else { return }
-        NSApp.appearance = theme == "dark" ? NSAppearance(named: .darkAqua) : theme == "light" ? NSAppearance(named: .aqua) : nil
+        if message.name == "theme", let theme = message.body as? String {
+            NSApp.appearance = theme == "dark" ? NSAppearance(named: .darkAqua) : theme == "light" ? NSAppearance(named: .aqua) : nil
+        } else if message.name == "saveFile", let body = message.body as? [String: Any] {
+            saveFile(body)
+        }
+    }
+
+    /// An exported PDF or CSV from the page: ask where to save it.
+    private func saveFile(_ body: [String: Any]) {
+        guard let name = body["name"] as? String, let b64 = body["base64"] as? String,
+              let data = Data(base64Encoded: b64) else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            do { try data.write(to: url) } catch { NSAlert(error: error).runModal() }
+        }
     }
 
     // MARK: Edit menu: copy the answer, paste a value into the formula.
@@ -139,7 +156,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard let text = NSPasteboard.general.string(forType: .string),
               let json = try? JSONSerialization.data(withJSONObject: [text]),
               let arg = String(data: json, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.__a2calc ? window.__a2calc.paste(\(arg)[0]) : false")
+        // The calculator in front takes it; with none (a text field, say),
+        // the ordinary paste.
+        webView.evaluateJavaScript("window.__a2calc ? window.__a2calc.paste(\(arg)[0]) : false") { result, _ in
+            if (result as? Bool) != true {
+                NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: sender)
+            }
+        }
     }
 
     private func buildMenu() -> NSMenu {

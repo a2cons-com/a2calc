@@ -7,6 +7,7 @@
 	import { grout as st, prefs } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
+	import ProjectBar from '$lib/components/ProjectBar.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import PlanCard from '$lib/components/PlanCard.svelte';
 	import WallList from '$lib/components/WallList.svelte';
@@ -35,6 +36,7 @@
 
 <div class="page">
 	<ToolHead title="Block fill grout" />
+	<ProjectBar kind="grout" />
 
 	<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
 		<span>Grout</span><span>{formatNumber(r.netFt3, 1)} cu ft</span>

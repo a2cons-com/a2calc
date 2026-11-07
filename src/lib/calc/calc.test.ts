@@ -339,3 +339,21 @@ describe('paste', () => {
 		expect(C.equals(C.paste(s, '2 1/2', 16)).done).toEqual({ v: 146.5, d: 1 });
 	});
 });
+
+describe('export report', async () => {
+	const { projectCsv, takeoffLine, takeoffReport, quarters } = await import('$lib/export/report');
+	const { WALL_DEFAULT, CONCRETE_DEFAULT, GROUT_DEFAULT } = await import('$lib/stores/app.svelte');
+	const tk = (kind: 'framing' | 'grout' | 'concrete', data: unknown) => ({ id: 1, kind, name: 'T', data: structuredClone(data), updated: 0 });
+	const project = { id: 1, name: 'Smith, "garage"', note: '', created: 0, updated: 0, takeoffs: [] };
+	it('reads each kind', () => {
+		expect(takeoffLine(tk('framing', WALL_DEFAULT), 16)).toBe('20 studs');
+		expect(takeoffLine(tk('concrete', CONCRETE_DEFAULT), 16)).toBe('5¼ cu yd');
+		expect(takeoffReport(tk('grout', GROUT_DEFAULT), 16).headline.unit).toBe('cu yd');
+		expect(quarters(0.25)).toBe('¼');
+	});
+	it('quotes CSV cells', () => {
+		const csv = projectCsv(project, [tk('concrete', CONCRETE_DEFAULT)], 16);
+		expect(csv.startsWith('﻿Project,')).toBe(true);
+		expect(csv).toContain('"Smith, ""garage"""');
+	});
+});

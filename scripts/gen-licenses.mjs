@@ -24,7 +24,10 @@ const SHIPPED = [
 	'@capacitor/clipboard',
 	'@capacitor/haptics',
 	'@capacitor/splash-screen',
-	'@capacitor/status-bar'
+	'@capacitor/status-bar',
+	'@capacitor/filesystem',
+	'@capacitor/share',
+	'jspdf'
 ];
 
 const out = SHIPPED.map((name) => {

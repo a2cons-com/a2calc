@@ -4,6 +4,7 @@
 	import { concrete as st, newId } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
+	import ProjectBar from '$lib/components/ProjectBar.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import ConcreteSketch from '$lib/components/ConcreteSketch.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -61,6 +62,7 @@
 
 <div class="page">
 	<ToolHead title="Concrete" />
+	<ProjectBar kind="concrete" />
 
 	<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
 		<span>Neat volume</span><span>{formatNumber(r.netIn3 / 1728, 1)} cu ft · {yd(r.netYd3)} yd</span>

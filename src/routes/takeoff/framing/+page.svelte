@@ -4,6 +4,7 @@
 	import { prefs, wall as st } from '$lib/stores/app.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
+	import ProjectBar from '$lib/components/ProjectBar.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import WallElevation from '$lib/components/WallElevation.svelte';
 	import PlanCard from '$lib/components/PlanCard.svelte';
@@ -34,6 +35,7 @@
 
 <div class="page">
 	<ToolHead title="Stud wall" />
+	<ProjectBar kind="framing" />
 
 	<ResultCard label="Full-height studs" value={String(verticals)} unit="pcs">
 		<span>Wall length</span><span>{ft(totalLength)} · {st.runs.length} {st.runs.length === 1 ? 'wall' : 'walls'}</span>

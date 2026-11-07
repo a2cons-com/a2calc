@@ -50,6 +50,7 @@
 		<p>Length × length gives an area, × another length a volume. Tap ′ again for square feet and again for cubic feet (″ does the same with inches), or hold the key to choose; Unit has the rest. After =, tap ′ to switch the answer between feet-inches and decimal feet (sq ft / sq yd, cu ft / cu yd), tap ″ for inches with fractions or decimal inches (sq in, cu in), or hold either for every unit; a plain number becomes feet or inches. A plain number can multiply or divide a length, but can't be added to it.</p>
 		<p>Memory: after =, tap an empty letter (A to F) above the keys to keep the answer there; tap a stored letter to use it in a formula. Hold a letter, or tap M, to store over or clear.</p>
 		<p>Every dimension in a takeoff opens the same calculator: type a new value, or work on the current one (+ 2′, × 3, a memory letter), then Done. A plain number there is feet or inches, as the field says.</p>
+		<p>Projects (in the menu) keep a job's takeoffs together on this device: save any takeoff to a project, and changes are saved as you make them. Export a project or a single takeoff as a PDF report (totals, drawings, cut list, what to buy) or a spreadsheet (CSV).</p>
 		<p>Answers round to {frac(1, prefs.precision)}″ (tap the chip at the top to change it); ≈ marks a rounded answer.</p>
 	</div>
 

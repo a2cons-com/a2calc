@@ -23,14 +23,16 @@ export const calc = persisted('calc', { s: initialState() as CalcState });
 let nextId = Date.now();
 export const newId = () => ++nextId;
 
-export const concrete = persisted('concrete', {
+// A takeoff's starting values: what a new one in a project begins with.
+export const CONCRETE_DEFAULT = {
 	pieces: [{ id: 1, kind: 'slab', a: PIECE_DEFAULTS.slab[0], b: PIECE_DEFAULTS.slab[1], c: PIECE_DEFAULTS.slab[2], count: 1 }] as Piece[],
 	wastePct: 5,
 	pumpYd3: 0,
 	selected: 0
-});
+};
+export type ConcreteData = typeof CONCRETE_DEFAULT;
 
-export const grout = persisted('grout', {
+export const GROUT_DEFAULT = {
 	width: 8,
 	lengthIn: 480,
 	outside: true,
@@ -45,9 +47,10 @@ export const grout = persisted('grout', {
 	runs: [{ id: 5, length: 480, openings: [] }],
 	closed: false,
 	lintel: 'grout'
-} as GroutInput & Required<Pick<GroutInput, 'runs' | 'closed' | 'lintel'>>);
+} as GroutInput & Required<Pick<GroutInput, 'runs' | 'closed' | 'lintel'>>;
+export type GroutData = typeof GROUT_DEFAULT;
 
-export const wall = persisted('wall', {
+export const WALL_DEFAULT: WallInput = {
 	member: '2x4',
 	spacing: 16,
 	height: 97.125,
@@ -60,7 +63,13 @@ export const wall = persisted('wall', {
 		{ id: 1, length: 168, openings: [{ id: 2, kind: 'window', width: 36, height: 48, sill: 36, offset: null, header: '2x10' }] },
 		{ id: 3, length: 120, openings: [{ id: 4, kind: 'door', width: 38, height: 82.5, sill: 0, offset: null, header: '2x10' }] }
 	]
-} as WallInput);
+};
+
+// The takeoff screens edit these; a takeoff opened from a project is copied
+// in and saved back as it changes (stores/projects).
+export const concrete = persisted('concrete', structuredClone(CONCRETE_DEFAULT));
+export const grout = persisted('grout', structuredClone(GROUT_DEFAULT));
+export const wall = persisted('wall', structuredClone(WALL_DEFAULT));
 
 export const convert = persisted('convert', {
 	mode: 'length' as 'length' | 'area' | 'volume' | 'dims',
