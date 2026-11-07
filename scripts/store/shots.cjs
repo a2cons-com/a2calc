@@ -55,7 +55,7 @@ body.side{flex-direction:row;justify-content:center;gap:160px}
   const p = await ctx.newPage();
   await p.goto('http://localhost:4173/');
   const frame = await (await b.newContext({ viewport: { width: DEV.W, height: DEV.H }, deviceScaleFactor: 1 })).newPage();
-  const dir = path.join(out, devName); fs.mkdirSync(dir, { recursive: true });
+  const dir = path.join(out, devName.replace(/^play_/, '')); fs.mkdirSync(dir, { recursive: true });
   for (const s of SHOTS) {
     await p.evaluate((seed) => { localStorage.clear(); for (const [k, v] of Object.entries(seed)) localStorage.setItem('a2calc:' + k, JSON.stringify({ v: 1, data: v })); }, seed);
     await p.goto('http://localhost:4173' + s.path); await p.addStyleTag({ content: '.page-head{background:var(--bg)!important}' }); await p.evaluate(() => window.scrollTo(0, 0)); await p.waitForTimeout(600);

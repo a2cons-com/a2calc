@@ -432,7 +432,7 @@
 	.display {
 		/* Takes what the keys leave; never squeezed below a readable answer. */
 		flex: 1 1 auto;
-		min-height: 104px;
+		min-height: min-content;
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
@@ -440,6 +440,12 @@
 		text-align: right;
 		padding: 8px 6px 10px;
 		overflow: hidden;
+	}
+	/* Scrolling boxes in a flex column may otherwise shrink below their
+	   text, which cut the tops off the formula and the answer on short
+	   screens (a 640 pt tall phone). */
+	.display > * {
+		flex-shrink: 0;
 	}
 	.expr {
 		font-size: 1.2rem;
