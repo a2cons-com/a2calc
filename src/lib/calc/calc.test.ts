@@ -289,3 +289,53 @@ describe('calculator', () => {
 		expect(p.done!.v).toBeCloseTo(2 * Math.PI);
 	});
 });
+
+describe('fractions next to lengths', () => {
+	const keys = (s: C.CalcState, ks: string) => {
+		for (const k of ks.split(' ')) {
+			if (k === '+' || k === '−' || k === '×') s = C.op(s, k, 16);
+			else if (k === '=') s = C.equals(s);
+			else s = C.key(s, k as EntryKey);
+		}
+		return s;
+	};
+	it('a bare fraction added to feet is inches', () => {
+		expect(keys(C.initialState(), `1 2 ft + 3 frac 4 =`).done).toEqual({ v: 144.75, d: 1 });
+	});
+	it('a bare fraction added to feet-inches is inches', () => {
+		expect(keys(C.initialState(), `5 ft 3 in + 1 frac 4 =`).done).toEqual({ v: 63.25, d: 1 });
+	});
+	it('a whole number after + still takes the feet', () => {
+		expect(keys(C.initialState(), `1 2 ft + 4 =`).done).toEqual({ v: 192, d: 1 });
+	});
+	it('a fraction times a length stays a multiplier', () => {
+		expect(keys(C.initialState(), `1 2 ft × 3 frac 4 =`).done).toEqual({ v: 108, d: 1 });
+	});
+});
+
+describe('paste', () => {
+	const p = (text: string, s = C.initialState()) => C.equals(C.paste(s, text, 16));
+	it('reads values with units and marks', () => {
+		expect(p(`8' 4 1/2"`).done).toEqual({ v: 100.5, d: 1 });
+		expect(p('12 ft').done).toEqual({ v: 144, d: 1 });
+		expect(p('10/2').done).toEqual({ v: 5, d: 0 });
+	});
+	it('leaves out what it does not know', () => {
+		expect(p('45°').done).toEqual({ v: 45, d: 0 });
+		expect(p('$1,234.50').done).toEqual({ v: 1234.5, d: 0 });
+		expect(p('approx. 12.5 deg').done).toEqual({ v: 12.5, d: 0 });
+	});
+	it('reads formulas', () => {
+		expect(p(`12' + 4' 6"`).done).toEqual({ v: 198, d: 1 });
+		expect(p('12 ft x 10 ft').done).toEqual({ v: 17280, d: 2 });
+		expect(p(`5'-6" - 2'`).done).toEqual({ v: 42, d: 1 });
+		expect(p('(2 + 3) × 4').done).toEqual({ v: 20, d: 0 });
+		expect(p('-3 + 10').done).toEqual({ v: 7, d: 0 });
+		expect(p('10 / 4').done).toEqual({ v: 2.5, d: 0 });
+	});
+	it('a pasted fraction after a length is inches', () => {
+		const s = C.op(C.paste(C.initialState(), `12'`, 16), '+', 16);
+		expect(C.equals(C.paste(s, '3/4', 16)).done).toEqual({ v: 144.75, d: 1 });
+		expect(C.equals(C.paste(s, '2 1/2', 16)).done).toEqual({ v: 146.5, d: 1 });
+	});
+});

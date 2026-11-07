@@ -27,6 +27,9 @@ export interface Entry {
 	hint?: UnitId | null;
 	/** The unit came from the hint: the feet / inch keys replace it. */
 	auto?: boolean;
+	/** The entry is added to or taken from a length: a bare fraction
+	 *  (3/4) is inches here, as on a tape, unless marked otherwise. */
+	fracIn?: boolean;
 }
 
 export const emptyEntry = (): Entry => ({ raw: '', unit: null });
@@ -122,7 +125,12 @@ export function canPress(e: Entry, key: EntryKey, cycle = true): boolean {
 export function press(e: Entry, key: EntryKey, cycle = true): Entry {
 	// First digit of an entry with a suggested unit: take the unit.
 	if (e.raw === '' && e.unit === null && e.hint && (/^\d$/.test(key) || key === '.')) {
-		return { raw: key === '.' ? '0.' : key, unit: e.hint, auto: true };
+		return { raw: key === '.' ? '0.' : key, unit: e.hint, auto: true, fracIn: e.fracIn };
+	}
+	// A bare fraction next to a length is inches (12' + 3/4 is 12' 3/4"),
+	// even where the number before was in feet.
+	if (key === 'frac' && /^\d+$/.test(e.raw) && (e.fracIn || (e.auto && e.unit === 'ft')) && (e.unit === null || e.auto)) {
+		return { ...e, raw: e.raw + '/', unit: 'in', auto: true };
 	}
 	if (e.auto && (key === 'ft' || key === 'in')) return press({ raw: e.raw, unit: null }, key, cycle);
 	if (cycle && (key === 'ft' || key === 'in')) {
@@ -275,10 +283,12 @@ export function parseText(text: string): Quantity | null {
 	}
 	if (s) {
 		// 6, 6.5, 6 1/2, 6-1/2, 1/2
-		const m = s.match(/^(?:([\d.]+)(?:\s+|-)?)?(?:(\d+)\/(\d+))?$/);
-		if (!m || (!m[1] && !m[2])) return null;
+		// 6, 6.5, 6 1/2, 6-1/2, 1/2, 10/2 (a whole number needs a space or a
+		// dash before its fraction, so 10/2 is not 1 0/2)
+		const m = s.match(/^(?:([\d.]+)(?:(?:\s+|-)(\d+)\/(\d+))?|(\d+)\/(\d+))$/);
+		if (!m) return null;
 		const whole = m[1] ? Number(m[1]) : 0;
-		const f = m[2] ? Number(m[2]) / Number(m[3]) : 0;
+		const f = m[2] ? Number(m[2]) / Number(m[3]) : m[4] ? Number(m[4]) / Number(m[5]) : 0;
 		if (!isFinite(whole) || !isFinite(f)) return null;
 		total += whole + f;
 	}

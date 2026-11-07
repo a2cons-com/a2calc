@@ -42,6 +42,20 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
+/// ⌘C and ⌘V go straight to the Edit menu's Copy and Paste. Left to
+/// WebKit they reach the page as key presses, and its clipboard read asks
+/// for permission with a "Paste" button first.
+final class CalcWebView: WKWebView {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if mods == .command, let key = event.charactersIgnoringModifiers?.lowercased(), key == "v" || key == "c",
+           let menu = NSApp.mainMenu, menu.performKeyEquivalent(with: event) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     var window: NSWindow!
     var webView: WKWebView!
@@ -52,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         config.setURLSchemeHandler(handler, forURLScheme: scheme)
         config.websiteDataStore = .default()
 
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = CalcWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
@@ -117,11 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard let text = NSPasteboard.general.string(forType: .string),
               let json = try? JSONSerialization.data(withJSONObject: [text]),
               let arg = String(data: json, encoding: .utf8) else { return }
-        webView.evaluateJavaScript("window.__a2calc ? window.__a2calc.paste(\(arg)[0]) : false") { result, _ in
-            if (result as? Bool) != true {
-                NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: sender)
-            }
-        }
+        webView.evaluateJavaScript("window.__a2calc ? window.__a2calc.paste(\(arg)[0]) : false")
     }
 
     private func buildMenu() -> NSMenu {

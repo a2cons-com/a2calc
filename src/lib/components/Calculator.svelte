@@ -27,7 +27,6 @@
 	import { keyAction } from '$lib/keyboard';
 	import type { EntryKey } from '$lib/calc/entry';
 	import { copyText, plainText, tap } from '$lib/native';
-	import { parseText } from '$lib/calc/entry';
 
 	let {
 		s = $bindable(),
@@ -231,8 +230,7 @@
 				break;
 			case 'paste': {
 				try {
-					const v = parseText(await navigator.clipboard.readText());
-					if (v) set(C.insert(s, v, den));
+					set(C.paste(s, await navigator.clipboard.readText(), den, fmt));
 				} catch {
 					/* clipboard blocked */
 				}
@@ -241,20 +239,23 @@
 		}
 	}
 
-	// The Mac app's Edit menu: Copy gives the answer (or the formula), Paste
-	// puts a typed value like 8' 4 1/2" in as the current number.
+	// The Mac app's Edit menu (and its ⌘C / ⌘V): Copy gives the answer (or
+	// the formula), Paste puts in whatever numbers the text has (C.paste).
+	// It goes to the calculator in front: a field's, when one is open.
 	$effect(() => {
-		if (!main) return;
+		if (!active) return;
 		const w = window as unknown as { __a2calc?: object };
-		w.__a2calc = {
+		const api = {
 			copyText: () => (shown ? shown.text : expr || null),
 			paste: (text: string) => {
-				const v = parseText(text);
-				if (v) set(C.insert(s, v, den));
-				return !!v;
+				set(C.paste(s, text, den, fmt));
+				return true;
 			}
 		};
-		return () => delete w.__a2calc;
+		w.__a2calc = api;
+		return () => {
+			if (w.__a2calc === api) delete w.__a2calc;
+		};
 	});
 
 	const time = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

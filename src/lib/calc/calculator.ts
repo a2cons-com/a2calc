@@ -1,7 +1,7 @@
 // The basic calculator's state machine, kept free of UI so it can be
 // tested: keys go in, the expression / live result / tape come out.
 
-import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, press, unitOf, withPower, type Entry, type EntryKey } from './entry';
+import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, parseText, press, unitOf, withPower, type Entry, type EntryKey } from './entry';
 import { CalcError, evaluate, openParens, tokensText, tokenText, type Op, type Token } from './expression';
 import { formatAs, defaultFormat, fromUnit, UNITS, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
@@ -139,7 +139,17 @@ function hintFor(o: Op, operand: Token | undefined, fmt?: LengthFormat): UnitId 
 	return null;
 }
 
-const nextEntry = (o: Op, operand: Token | undefined, fmt?: LengthFormat): Token => ({ kind: 'entry', entry: { ...emptyEntry(), hint: hintFor(o, operand, fmt) } });
+/** Whether `operand` is a length (a bare fraction added to it is inches). */
+function isLength(operand: Token | undefined): boolean {
+	if (operand?.kind === 'value') return operand.value.d === 1;
+	if (operand?.kind === 'entry') return entryValue(operand.entry)?.d === 1;
+	return false;
+}
+
+const nextEntry = (o: Op, operand: Token | undefined, fmt?: LengthFormat): Token => ({
+	kind: 'entry',
+	entry: { ...emptyEntry(), hint: hintFor(o, operand, fmt), fracIn: (o === '+' || o === '−') && isLength(operand) }
+});
 
 /** `fmt`: how the answer is shown now, so carrying it on keeps that unit. */
 export function op(s: CalcState, o: Op, den: number, fmt?: LengthFormat): CalcState {
@@ -320,4 +330,81 @@ export function pi(s: CalcState): CalcState {
 	const tokens = [...base.tokens];
 	tokens[tokens.length - 1] = { kind: 'value', value: { v: Math.PI, d: 0 }, text: 'π' };
 	return { ...base, tokens, error: null };
+}
+
+/** Paste text: a value (8' 4 1/2", 12 ft, 3.5 m) goes in as the current
+ *  number; anything else is read as a formula (12' + 4' 6" x 2). What isn't
+ *  a number, a unit or an operator ($, °, words, thousands commas) is left
+ *  out, so whatever numbers there are always get in. */
+export function paste(s: CalcState, text: string, den: number, fmt?: LengthFormat): CalcState {
+	const whole = parseText(text);
+	if (whole) return put(s, whole, text.trim(), den);
+	const t = text
+		.toLowerCase()
+		.replace(/[′’‘]/g, "'")
+		.replace(/[″”“]/g, '"')
+		.replace(/⁄/g, '/')
+		.replace(/[−–—]/g, '-')
+		.replace(/(\d),(?=\d{3}(?!\d))/g, '$1')
+		.replace(/(\d)\s*(?:feet|foot|ft)(?![a-z])/g, "$1'")
+		.replace(/(\d)\s*(?:inches|inch|in)(?![a-z])/g, '$1"')
+		.replace(/([\d'")])\s*[x×*]\s*(?=[\d.(])/g, '$1 × ')
+		.replace(/÷/g, ' ÷ ')
+		// 5'-6" and 6-1/2 are one number, not a subtraction.
+		.replace(/'\s*-\s*(?=\d)/g, "' ")
+		.replace(/(\d)-(?=\d+\/\d)/g, '$1 ')
+		.replace(/[^0-9.'"/+\-×÷()\s]/g, ' ');
+	// Operators and parentheses split the text; "/" with spaces around it
+	// divides, inside a number it is a fraction.
+	const parts = t.split(/(\s\/\s|[+\-×÷()])/).map((p) => p.trim()).filter(Boolean);
+	let out = s;
+	let neg = false;
+	let expectOperand = true;
+	for (const p of parts) {
+		if (p === '(' || p === ')') {
+			out = paren(out, p, den, fmt);
+			expectOperand = p === '(';
+			continue;
+		}
+		if (p === '-' && expectOperand) {
+			neg = !neg;
+			continue;
+		}
+		if (p === '+' || p === '-' || p === '×' || p === '÷' || p === '/') {
+			const o: Op = p === '+' ? '+' : p === '-' ? '−' : p === '/' ? '÷' : (p as Op);
+			out = op(out, o, den, fmt);
+			expectOperand = true;
+			continue;
+		}
+		const v = operand(p);
+		if (!v) continue;
+		if (!expectOperand && hasOperand(out)) out = op(out, '×', den, fmt);
+		out = put(out, neg ? { v: -v.v, d: v.d } : v, p, den);
+		neg = false;
+		expectOperand = false;
+	}
+	return out;
+}
+
+/** A pasted piece as a value: 5' 3 1/2", 3/4, 12; the first number in it
+ *  when it doesn't read as one (two numbers side by side). */
+function operand(p: string): Quantity | null {
+	const v = parseText(p);
+	if (v) return v;
+	const n = p.match(/\d*\.?\d+/);
+	return n ? { v: Number(n[0]), d: 0 } : null;
+}
+
+/** Put a pasted number in. A plain number is typed key by key, so it takes
+ *  the unit the calculator suggests (12' + 4 is 12' + 4', 12' + 3/4 is
+ *  12' 3/4"); a mixed one next to a length is inches. */
+function put(s: CalcState, v: Quantity, text: string, den: number): CalcState {
+	if (v.d === 0 && v.v >= 0 && /^(?:\d*\.?\d+|\d+\/\d+)$/.test(text)) {
+		let out = s;
+		for (const ch of text) out = key(out, ch === '/' ? 'frac' : (ch as EntryKey));
+		return out;
+	}
+	const e = s.done ? null : current(s);
+	if (v.d === 0 && e && (e.fracIn || e.hint === 'in') && /\//.test(text)) return insert(s, { v: v.v, d: 1 }, den);
+	return insert(s, v, den);
 }
