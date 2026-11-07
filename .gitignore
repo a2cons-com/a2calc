@@ -51,3 +51,4 @@ __pycache__/
 # macOS: generated from macos/project.yml and config/app.json
 macos/A2Calc.xcodeproj/
 macos/Config.generated.xcconfig
+_site/

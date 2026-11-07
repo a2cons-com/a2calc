@@ -7,6 +7,8 @@
 //   (APP_IPAD_PRO_3GEN_129, APP_DESKTOP; play_phone, play_tablet7,
 //   play_tablet10 go to docs/store-listing/play/<phone|tablet7|tablet10>)
 //   node scripts/store/feature.cjs docs/store-listing/play <icon.png>
+// RAW=<dir> also saves each bare app screenshot there (raw-<id>.png), for
+// the website's device frames.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const seed = require('./seed.cjs');
@@ -63,6 +65,7 @@ body.side{flex-direction:row;justify-content:center;gap:160px}
     if (s.scroll) { await p.getByText(new RegExp('^' + s.scroll + '$', 'i')).first().evaluate((e) => window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 70)); await p.waitForTimeout(400); }
     await p.evaluate(() => document.querySelectorAll('*').forEach((e) => { if (e.scrollWidth > e.clientWidth + 4 && getComputedStyle(e).overflowX !== 'visible' && e !== document.documentElement && e !== document.body) e.scrollLeft = 0; }));
     const img = await p.screenshot();
+    if (process.env.RAW) fs.writeFileSync(path.join(process.env.RAW, `raw-${s.id}.png`), img);
     await frame.setContent(html(img, s, DEV), { waitUntil: 'networkidle' });
     await frame.screenshot({ path: path.join(dir, `store-${s.id}.png`) });
     console.log(devName, s.id);

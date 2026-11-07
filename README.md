@@ -57,6 +57,17 @@ support@a2cons.com, or [open an issue](https://github.com/a2cons-com/a2calc/issu
 The app is available on the App Store (iPhone, iPad and Mac) and Google
 Play as "A2 Takeoff Calc".
 
+## Website
+
+https://calc.a2cons.com: the landing page, a guide, support, and the
+terms and privacy pages (made from TERMS.md and PRIVACY.md). Sources are
+in `site/` (`pages/` wrapped by `scripts/site-build.mjs` into `_site/`);
+`.github/workflows/pages.yml` publishes it to GitHub Pages on every push
+that touches them. Screenshots come from `scripts/store/shots.cjs` with
+`RAW=<dir>` (WebP, 600 px wide); the videos are the promos re-encoded to
+720x1280 and start loading only after the page has. Once the App Store
+version is live, set `APP_STORE_LIVE` in the build script.
+
 ## Terms and privacy
 
 [Terms of Use](TERMS.md) (use at your own risk; no warranty) and
