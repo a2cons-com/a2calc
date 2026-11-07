@@ -128,8 +128,11 @@ def main():
         print('no R8 mapping file at', mapping)
 
     notes = release_notes(marketing_version)
-    track = api(token, 'PUT', f'/edits/{edit_id}/tracks/internal', body={
-        'track': 'internal',
+    # PLAY_TRACK=production (or alpha, beta) releases straight to that track;
+    # the default is Internal testing.
+    track_name = os.environ.get('PLAY_TRACK', 'internal')
+    track = api(token, 'PUT', f'/edits/{edit_id}/tracks/{track_name}', body={
+        'track': track_name,
         'releases': [{
             'versionCodes': [str(version_code)],
             'status': 'completed',

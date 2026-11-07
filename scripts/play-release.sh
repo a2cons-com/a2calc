@@ -4,6 +4,7 @@
 #   scripts/play-release.sh               # full pipeline
 #   scripts/play-release.sh --skip-tests  # skip svelte-check + vitest
 #   scripts/play-release.sh --no-upload   # build the signed .aab only
+#   PLAY_TRACK=production scripts/play-release.sh   # straight to Production
 #
 # The version is config/app.json's marketingVersion (bump it with the iOS
 # release, or by hand); the versionCode is the commit count. Signing uses
