@@ -46,7 +46,7 @@
 			<dt>12.5 ′</dt><dd>12′ 6″</dd>
 		</dl>
 		<p>Nothing is worked out until you press =, so type the whole formula first. × and ÷ go before + and −; use ( ) to change that. Parentheses left open close at =.</p>
-		<p>After + or −, the next number takes the unit of the one before (5 cu ft + 3 is 3 cu ft; 12′ + 4 is 4′); tap ′ or ″ to change it. × and ÷ leave numbers plain, so 12′ × 3 is 36′.</p>
+		<p>After + or −, the next number takes the unit of the one before (5 cu ft + 3 is 3 cu ft; 12′ + 4 is 4′), but a bare fraction next to a length is inches, as on a tape (12′ + 3/4 is 12′ ¾″); tap ′ or ″ to change it. × and ÷ leave numbers plain, so 12′ × 3 is 36′.</p>
 		<p>Length × length gives an area, × another length a volume. Tap ′ again for square feet and again for cubic feet (″ does the same with inches), or hold the key to choose; Unit has the rest. After =, tap ′ to switch the answer between feet-inches and decimal feet (sq ft / sq yd, cu ft / cu yd), tap ″ for inches with fractions or decimal inches (sq in, cu in), or hold either for every unit; a plain number becomes feet or inches. A plain number can multiply or divide a length, but can't be added to it.</p>
 		<p>Memory: after =, tap an empty letter (A to F) above the keys to keep the answer there; tap a stored letter to use it in a formula. Hold a letter, or tap M, to store over or clear.</p>
 		<p>Every dimension in a takeoff opens the same calculator: type a new value, or work on the current one (+ 2′, × 3, a memory letter), then Done. A plain number there is feet or inches, as the field says.</p>
