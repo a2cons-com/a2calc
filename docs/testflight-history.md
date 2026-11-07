@@ -222,3 +222,19 @@ What to check
 
 - On a small phone (or a short window), type 5' 3 1/2" + 2' 10 3/4" = and check that the formula and the whole answer show.
 - Mac: the window opens with the calculator and moves by its title bar.
+
+## 0.2.2 (76), 2026-11-07
+
+Every dimension field now opens the full calculator.
+
+What changed
+
+- Tapping a length, height or any other value in a takeoff opens the whole calculator: math, memory letters A to F, the tape and units. It starts on the current value, so a new number replaces it and + 2' or x 3 works on it. The = key turns into Done once there's a value to use.
+- Answers worked out there land on the calculator's tape, and stored letters are shared with it.
+
+What to check
+
+- Stud wall: tap a wall's Length, type + 2' = Done; the wall grows by 2'.
+- Type a plain number (like 30) in a Length field: it means feet, as the field says.
+- A wrong kind (2' x 3' in a Length) says it's an area instead of using it.
+- The calculator page works as before.
