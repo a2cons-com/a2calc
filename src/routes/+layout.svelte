@@ -27,6 +27,32 @@
 	];
 	const active = (href: string) => page.url.pathname === href;
 
+	// Light or dark: the choice in the menu, or the phone's setting. The
+	// status bar (iOS, Android) and the Mac window follow it.
+	let systemDark = $state(typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches);
+	const dark = $derived(prefs.theme === 'dark' || (prefs.theme === 'system' && systemDark));
+	$effect(() => {
+		const mq = matchMedia('(prefers-color-scheme: dark)');
+		const on = () => (systemDark = mq.matches);
+		mq.addEventListener('change', on);
+		return () => mq.removeEventListener('change', on);
+	});
+	$effect(() => {
+		document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+		const mac = (window as unknown as { webkit?: { messageHandlers?: { theme?: { postMessage(m: string): void } } } }).webkit?.messageHandlers?.theme;
+		mac?.postMessage(prefs.theme);
+		if (isNative()) {
+			import('@capacitor/status-bar')
+				.then(({ StatusBar, Style }) => StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }))
+				.catch(() => {});
+		}
+	});
+	const THEMES = [
+		{ id: 'system', label: 'Auto' },
+		{ id: 'light', label: 'Light' },
+		{ id: 'dark', label: 'Dark' }
+	] as const;
+
 	let disclaimer = $state(!prefs.disclaimerSeen);
 	$effect(() => {
 		if (!disclaimer) prefs.disclaimerSeen = true;
@@ -68,6 +94,14 @@
 			{/if}
 		{/each}
 	</nav>
+	<div class="theme">
+		<span class="section-title">Appearance</span>
+		<div class="seg" role="radiogroup" aria-label="Appearance">
+			{#each THEMES as t (t.id)}
+				<button class:on={prefs.theme === t.id} role="radio" aria-checked={prefs.theme === t.id} onclick={() => (prefs.theme = t.id)}>{t.label}</button>
+			{/each}
+		</div>
+	</div>
 </Sheet>
 
 <ValueEditor />
@@ -130,6 +164,19 @@
 	}
 	.menu .section-title {
 		margin: 14px 8px 4px;
+	}
+	.theme {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 10px 8px 6px;
+	}
+	.theme .section-title {
+		margin: 0;
+		flex: none;
+	}
+	.theme .seg {
+		flex: 1;
 	}
 	.menu .gap {
 		height: 10px;

@@ -178,6 +178,13 @@
 		void input;
 		if (ready) build();
 	});
+
+	// Light / dark switched: the colors come from the theme, so repaint.
+	$effect(() => {
+		const obs = new MutationObserver(() => ready && build());
+		obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+		return () => obs.disconnect();
+	});
 </script>
 
 <div class="three" bind:this={host}>

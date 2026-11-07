@@ -163,7 +163,7 @@
 		gap: 8px;
 	}
 	.piece .fields :global(.field) {
-		background: var(--bg);
+		background: var(--field-inset);
 	}
 	.piece-foot {
 		display: flex;

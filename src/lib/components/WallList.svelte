@@ -157,7 +157,7 @@
 		text-align: center;
 	}
 	.run :global(.field) {
-		background: var(--bg);
+		background: var(--field-inset);
 	}
 	.mini {
 		display: block;

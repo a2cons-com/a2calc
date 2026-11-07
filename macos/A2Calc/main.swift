@@ -56,7 +56,7 @@ final class CalcWebView: WKWebView {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var webView: WKWebView!
     let handler = BundleSchemeHandler()
@@ -65,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(handler, forURLScheme: scheme)
         config.websiteDataStore = .default()
+        config.userContentController.add(self, name: "theme")
 
         webView = CalcWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
@@ -112,6 +113,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = action.request.url { NSWorkspace.shared.open(url) }
         return nil
+    }
+
+    // The page's Appearance choice (system, light or dark): the window's
+    // title bar and menus follow it.
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "theme", let theme = message.body as? String else { return }
+        NSApp.appearance = theme == "dark" ? NSAppearance(named: .darkAqua) : theme == "light" ? NSAppearance(named: .aqua) : nil
     }
 
     // MARK: Edit menu: copy the answer, paste a value into the formula.

@@ -12,6 +12,16 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<title>A2 Calc</title>
+		<script>
+			// Light or dark before the first paint (the layout keeps it current).
+			try {
+				var t = (JSON.parse(localStorage.getItem('a2calc:prefs') || '{}').data || {}).theme;
+				var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+			} catch (e) {
+				document.documentElement.dataset.theme = 'light';
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

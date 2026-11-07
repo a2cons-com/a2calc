@@ -1,6 +1,7 @@
 /* A2 Calc theme. The A2 green (#006839) carries
-   the accent; everything else stays quiet so numbers read first. Light by
-   day, dark when the phone is in dark mode. */
+   the accent; everything else stays quiet so numbers read first. Light or
+   dark: html[data-theme] follows the phone, or the choice in the menu
+   (set before the first paint by app.html, then by the layout). */
 
 :root {
 	--green: #006839;
@@ -25,6 +26,11 @@
 	--key-fn: #e4ebe7;
 	--key-unit: #f0f6f2;
 	--key-shadow: 0 1px 0 rgba(17, 28, 22, 0.08), 0 1px 3px rgba(17, 28, 22, 0.06);
+	/* Tappable fields (a value that opens the calculator) */
+	--field: #ffffff;
+	--field-border: #d3ddd7;
+	/* A field inside a card: sunk into it in light, raised in dark */
+	--field-inset: var(--bg);
 
 	/* Drawings */
 	--wood: #e2c393;
@@ -51,43 +57,44 @@
 	color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--bg: #0b100d;
-		--surface: #151c18;
-		--surface-2: #1d2621;
-		--text: #e6eee9;
-		--muted: #93a49b;
-		--faint: #66766d;
-		--border: #25302a;
-		--primary: #1a8553;
-		--primary-ink: #ffffff;
-		--primary-soft: #143322;
-		--primary-text: #5fc792;
-		--danger: #ff8a80;
-		--warn-bg: #3a2e12;
-		--warn-text: #f2cf7d;
+:root[data-theme='dark'] {
+	--bg: #0b100d;
+	--surface: #18201c;
+	--surface-2: #232d28;
+	--text: #e6eee9;
+	--muted: #a0b1a8;
+	--faint: #76877e;
+	--border: #313d37;
+	--primary: #1a8553;
+	--primary-ink: #ffffff;
+	--primary-soft: #18402a;
+	--primary-text: #5fc792;
+	--danger: #ff8a80;
+	--warn-bg: #3a2e12;
+	--warn-text: #f2cf7d;
 
-		--key-digit: #1b231f;
-		--key-fn: #252f2a;
-		--key-unit: #18271f;
-		--key-shadow: none;
+	--key-digit: #26302b;
+	--key-fn: #323e38;
+	--key-unit: #1f3329;
+	--key-shadow: none;
 
-		--wood: #9c7c4f;
-		--wood-edge: #c9a36b;
-		--wood-king: #8c6a3c;
-		--wood-header: #7a5528;
-		--plate: #a88a5c;
-		--opening: #1b2a36;
-		--opening-edge: #4f7591;
-		--cmu: #3a423e;
-		--cmu-edge: #59635e;
-		--grout: #9fb0a7;
-		--concrete: #4a514d;
-		--concrete-top: #5b635f;
-		--concrete-side: #3b413e;
-		color-scheme: dark;
-	}
+	--wood: #9c7c4f;
+	--wood-edge: #c9a36b;
+	--wood-king: #8c6a3c;
+	--wood-header: #7a5528;
+	--plate: #a88a5c;
+	--opening: #1b2a36;
+	--opening-edge: #4f7591;
+	--cmu: #3a423e;
+	--cmu-edge: #59635e;
+	--grout: #9fb0a7;
+	--concrete: #4a514d;
+	--concrete-top: #5b635f;
+	--concrete-side: #3b413e;
+	--field: #26302b;
+	--field-border: #3d4b44;
+	--field-inset: #26302b;
+	color-scheme: dark;
 }
 
 * {

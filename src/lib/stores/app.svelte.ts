@@ -13,6 +13,8 @@ export const prefs = persisted('prefs', {
 	/** Display format of a result, by dimension. */
 	fmt: { 1: 'ftin', 2: 'sqft', 3: 'cuyd' } as Record<1 | 2 | 3, LengthFormat>,
 	haptics: true,
+	/** Light or dark, or as the phone is set. */
+	theme: 'system' as 'system' | 'light' | 'dark',
 	disclaimerSeen: false
 });
 

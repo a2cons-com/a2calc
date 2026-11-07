@@ -53,8 +53,8 @@
 		gap: 12px;
 		width: 100%;
 		padding: 13px 14px;
-		background: var(--surface);
-		border: 1px solid var(--border);
+		background: var(--field);
+		border: 1px solid var(--field-border);
 		border-radius: 12px;
 		text-align: left;
 		min-height: 52px;
