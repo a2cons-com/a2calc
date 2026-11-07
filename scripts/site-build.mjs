@@ -16,7 +16,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'site');
 const OUT = join(ROOT, '_site');
 const ORIGIN = 'https://calc.a2cons.com';
-const APP_STORE_LIVE = false;
+const APP_STORE_LIVE = true;
 const APP_STORE = 'https://apps.apple.com/app/id6831422602';
 const PLAY = 'https://play.google.com/store/apps/details?id=com.a2cons.calc';
 const YEAR = 2026;
