@@ -2,7 +2,9 @@
 # scripts/site-build.mjs and publishes it to GitHub Pages.
 # One-time repo setup: Settings > Pages > Source: GitHub Actions; custom
 # domain calc.a2cons.com (DNS: CNAME calc -> a2cons-com.github.io), then
-# Enforce HTTPS.
+# Enforce HTTPS. To redeploy, start a new run (Actions > Site > Run
+# workflow), not "Re-run": a re-run uploads a second github-pages
+# artifact into the same run and deploy-pages refuses it.
 name: Site
 on:
   push:
