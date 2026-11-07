@@ -1,148 +1,121 @@
 <script lang="ts">
-	import { canPress, emptyEntry, entryValue, formatEntry, press, backspace, type Entry, type EntryKey } from '$lib/calc/entry';
-	import { formatFtIn, formatNumber } from '$lib/calc/units';
-	import { editor } from '$lib/stores/editor.svelte';
-	import { prefs } from '$lib/stores/app.svelte';
-	import Keypad from './Keypad.svelte';
-	import Sheet from './Sheet.svelte';
+	// The editor every field opens: the full calculator (math, memory
+	// letters, the tape, units) over the page. It opens on the field's
+	// value as the answer, so a new number replaces it and an operator
+	// works on it (+ 2′). The = key turns into Done once there is a value to
+	// use: an answer, or a single number. Memory and the tape are the
+	// calculator's own, shared with the calculator page.
+	import { untrack } from 'svelte';
+	import { fly } from 'svelte/transition';
+	import * as C from '$lib/calc/calculator';
+	import { formatFtIn, formatNumber, type Quantity } from '$lib/calc/units';
+	import { editor, type EditRequest } from '$lib/stores/editor.svelte';
+	import { calc, prefs } from '$lib/stores/app.svelte';
+	import Calculator, { type Pick } from './Calculator.svelte';
+	import Icon from './Icon.svelte';
 
-	let entry = $state<Entry>(emptyEntry());
-	let open = $state(false);
-	const req = $derived(editor.req);
+	let req = $state<EditRequest | null>(null);
+	let s = $state.raw<C.CalcState>(C.initialState());
+	let seed = $state.raw<Quantity | null>(null);
 
 	$effect(() => {
-		if (editor.req) {
-			entry = emptyEntry();
-			open = true;
+		const r = editor.req;
+		if (!r) {
+			req = null;
+			return;
 		}
+		untrack(() => {
+			req = r;
+			seed = { v: r.value, d: r.kind === 'length' ? 1 : 0 };
+			s = { ...C.initialState(), tape: calc.s.tape, vars: calc.s.vars, done: seed };
+		});
 	});
+
+	// Answers and stored letters go back to the calculator's own memory.
 	$effect(() => {
-		if (!open && editor.req) editor.req = null;
+		const { tape, vars } = s;
+		if (!req) return;
+		untrack(() => {
+			if (calc.s.tape !== tape || calc.s.vars !== vars) calc.s = { ...calc.s, tape, vars };
+		});
 	});
 
 	const show = (v: number) => (req?.kind === 'length' ? formatFtIn(v, prefs.precision) : formatNumber(v, 4) + (req?.suffix ? ` ${req.suffix}` : ''));
+	const close = () => (editor.req = null);
 
-	/** The typed value in the field's terms, or null when nothing / invalid. */
-	const typed = $derived.by(() => {
-		if (!req) return null;
-		const q = entryValue(entry);
-		if (!q) return null;
+	/** The value to use in the field's terms, or an error to show. */
+	function result(r: EditRequest, q: Quantity): number | string {
 		let v = q.v;
-		if (req.kind === 'length' && q.d === 0) v = q.v * (req.bare === 'ft' ? 12 : 1);
-		if (req.integer) v = Math.round(v);
+		if (r.kind === 'length') {
+			if (q.d === 0) v = q.v * (r.bare === 'ft' ? 12 : 1);
+			else if (q.d !== 1) return q.d === 2 ? "That's an area, not a length" : "That's a volume, not a length";
+		} else if (q.d !== 0) return 'Needs a plain number';
+		if (r.integer) v = Math.round(v);
+		if (!Number.isFinite(v)) return 'Not a number';
+		if (r.min !== undefined && v < r.min) return `At least ${show(r.min)}`;
+		if (r.max !== undefined && v > r.max) return `At most ${show(r.max)}`;
 		return v;
-	});
-	const problem = $derived.by(() => {
-		if (!req || typed === null) return null;
-		if (req.min !== undefined && typed < req.min) return `At least ${show(req.min)}`;
-		if (req.max !== undefined && typed > req.max) return `At most ${show(req.max)}`;
-		return null;
-	});
+	}
 
 	function done() {
-		if (req && typed !== null && !problem) req.set(typed);
-		open = false;
-	}
-	const can = (k: EntryKey) => canPress(entry, k, false) && !(req?.integer && (k === '.' || k === 'frac'));
-
-	// Typing into a field: digits, ' " / . Backspace, Enter = Done, Esc = cancel.
-	function onKeydown(e: KeyboardEvent) {
-		if (!open || !req || e.metaKey || e.ctrlKey || e.altKey) return;
-		const map: Record<string, EntryKey> = { "'": 'ft', '′': 'ft', '"': 'in', '″': 'in', '/': 'frac', '.': '.', ',': '.' };
-		const k: EntryKey | undefined = /^[0-9]$/.test(e.key) ? (e.key as EntryKey) : map[e.key];
-		if (k) {
-			e.preventDefault();
-			if (can(k) && (req.kind === 'length' || (k !== 'ft' && k !== 'in'))) entry = press(entry, k, false);
-		} else if (e.key === 'Backspace') {
-			e.preventDefault();
-			entry = backspace(entry);
-		} else if (e.key === 'Enter') {
-			e.preventDefault();
-			done();
-		} else if (e.key === 'Escape') {
-			e.preventDefault();
-			open = false;
+		if (!req) return;
+		if (s.done === seed) return close();
+		const finished = s.done ? s : C.equals(s);
+		if (finished.error || !finished.done) {
+			s = finished;
+			return;
 		}
+		const v = result(req, finished.done);
+		if (typeof v === 'string') {
+			s = { ...finished, error: v };
+			return;
+		}
+		s = finished;
+		req.set(v);
+		close();
 	}
+
+	const pick: Pick = $derived({
+		hint: req ? (req.kind === 'length' ? `A plain number is ${req.bare === 'ft' ? 'feet' : 'inches'}` : req.integer ? 'A whole number' : 'A plain number') : '',
+		seed,
+		done,
+		cancel: close
+	});
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<Sheet bind:open title={req?.label ?? ''}>
-	{#if req}
-	<div class="wrap">
-		<div class="readout">
-			<div class="now num" class:typing={entry.raw !== ''}>
-				{#if entry.raw !== ''}
-					{formatEntry(entry)}{#if req.kind === 'length' && !/['"]/.test(entry.raw)}<span class="bare">&nbsp;{req.bare === 'ft' ? 'ft' : 'in'}</span>{/if}
-				{:else}
-					{show(req.value)}
-				{/if}
-			</div>
-			<div class="hint">
-				{#if problem}
-					<span class="bad">{problem}</span>
-				{:else if entry.raw !== '' && typed !== null && req.kind === 'length'}
-					= {show(typed)}
-				{:else if req.kind === 'length'}
-					Type a new value · a plain number is {req.bare === 'ft' ? 'feet' : 'inches'}
-				{:else}
-					Type a new value
-				{/if}
-			</div>
-		</div>
-		<div class="pad">
-			<Keypad mode="input" {can} allowLength={req.kind === 'length'} onkey={(k) => (entry = press(entry, k, false))} onback={() => (entry = backspace(entry))} ondone={done} />
-		</div>
+{#if req}
+	<div class="editor" role="dialog" aria-label={req.label} transition:fly={{ y: 500, duration: 220 }}>
+		<Calculator bind:s {pick}>
+			{#snippet lead()}
+				<button class="close" onclick={close} aria-label="Cancel"><Icon name="close" /></button>
+				<span class="label">{req?.label}</span>
+			{/snippet}
+		</Calculator>
 	</div>
-	{/if}
-</Sheet>
+{/if}
 
 <style>
-	.readout {
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		padding: 14px 16px;
-		text-align: right;
-		margin-bottom: 12px;
+	.editor {
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		background: var(--bg);
+		overflow: hidden;
 	}
-	.now {
-		font-size: 2.2rem;
-		font-weight: 600;
-		color: var(--faint);
-		min-height: 2.6rem;
-		white-space: nowrap;
-		overflow-x: auto;
-	}
-	.now.typing {
+	.close {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		display: grid;
+		place-items: center;
 		color: var(--text);
+		margin-left: -6px;
 	}
-	.bare {
-		font-size: 1.1rem;
-		color: var(--muted);
-	}
-	.hint {
-		font-size: 0.85rem;
-		color: var(--muted);
-		min-height: 1.2em;
-		margin-top: 2px;
-	}
-	.bad {
-		color: var(--danger);
-	}
-	.pad {
-		height: min(340px, 46dvh);
-	}
-	@media (orientation: landscape) and (max-height: 540px) {
-		.wrap {
-			display: grid;
-			grid-template-columns: 1fr 1.2fr;
-			gap: 14px;
-			align-items: start;
-		}
-		.pad {
-			height: calc(88dvh - 90px - env(safe-area-inset-bottom));
-		}
+	.label {
+		font-weight: 700;
+		font-size: 1.15rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 </style>

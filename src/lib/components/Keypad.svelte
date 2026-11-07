@@ -26,7 +26,8 @@
 		onparen,
 		canParen = () => true,
 		wide = false,
-		unitEnabled = true
+		unitEnabled = true,
+		equalsLabel = '='
 	}: {
 		mode?: 'calc' | 'input';
 		can: (k: EntryKey) => boolean;
@@ -46,6 +47,8 @@
 		canParen?: (p: '(' | ')') => boolean;
 		wide?: boolean;
 		unitEnabled?: boolean;
+		/** The calculator's = key turns into Done in a field's editor. */
+		equalsLabel?: string;
 	} = $props();
 
 	// A long press on ′ or ″ opens the linear / square / cubic choice; the
@@ -134,7 +137,7 @@
 		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
 		{@render fnKey('pi', 'π', 'Pi')}
 		{@render digit('1')}{@render digit('2')}{@render digit('3')}
-		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
+		<button class="key eq" class:word={equalsLabel.length > 1} onclick={() => { tap(true); onequals?.(); }}>{equalsLabel}</button>
 		{@render fnKey('neg', '±', 'Change sign')}
 		{@render digit('0', 'wide-key')}{@render digit('.')}
 	</div>
@@ -159,7 +162,7 @@
 		{@render digit('7')}{@render digit('8')}{@render digit('9')}{@render opKey('−')}
 		{@render digit('4')}{@render digit('5')}{@render digit('6')}{@render opKey('+')}
 		{@render digit('1')}{@render digit('2')}{@render digit('3')}
-		<button class="key eq" onclick={() => { tap(true); onequals?.(); }}>=</button>
+		<button class="key eq" class:word={equalsLabel.length > 1} onclick={() => { tap(true); onequals?.(); }}>{equalsLabel}</button>
 		{@render digit('0', 'wide-key')}{@render digit('.')}
 	</div>
 {:else}
@@ -313,6 +316,11 @@
 	}
 	.calc .eq {
 		grid-row: span 2;
+	}
+	.eq.word {
+		font-family: var(--font);
+		font-size: 1.3rem;
+		font-weight: 650;
 	}
 	.eq.small {
 		font-family: var(--font);
