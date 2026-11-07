@@ -110,3 +110,15 @@ describe('framing', () => {
 		expect(moveRange(run, 2, 97.125)).toEqual([20 + 38 + 12, 240 - 6 - 36]);
 	});
 });
+
+describe('block openings', async () => {
+	const { wallGrout } = await import('./grout');
+	it('keep one masonry width wherever they sit, on the 8″ grid', () => {
+		for (let off = 40; off < 60; off++) {
+			const run = { id: 1, length: 240, openings: [{ id: 2, kind: 'window' as const, width: 36, height: 48, sill: 32, offset: off }] };
+			const [a, b] = wallGrout(run, false, false, 96, 48, 1).holes[0];
+			expect(b - a).toBe(40);
+			expect(a % 8).toBe(0);
+		}
+	});
+});

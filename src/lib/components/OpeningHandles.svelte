@@ -14,7 +14,7 @@ export interface Handle {
 	// Drag handles for the doors and windows in a wall elevation (studs or
 	// block): a layer drawn inside the elevation's <svg>, in its wall-inch
 	// coordinates with y = 0 at the floor flipped to `floor` (the svg's y of
-	// the floor line). Openings move in 1″ steps within `range`; while one
+	// the floor line). Openings move in `step` (1″, or a block) within `range`; while one
 	// moves, its distance from the wall's left end shows.
 	import { formatFtIn } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
@@ -25,7 +25,8 @@ export interface Handle {
 		fs,
 		s,
 		onmove,
-		range
+		range,
+		step = 1
 	}: {
 		handles: Handle[];
 		floor: number;
@@ -36,6 +37,8 @@ export interface Handle {
 		onmove?: (id: number, offset: number) => void;
 		/** Where an opening's left edge may go: [min, max]. */
 		range?: (id: number) => [number, number];
+		/** Drag steps, in inches: 1″ for framing, a block (8″) for masonry. */
+		step?: number;
 	} = $props();
 
 	const y = (yy: number, h: number) => floor - yy - h;
@@ -61,8 +64,10 @@ export interface Handle {
 	}
 	function move(e: PointerEvent) {
 		if (!drag || !onmove) return;
-		const a = Math.round(drag.startA + wallX(e) - drag.startX);
-		onmove(drag.id, Math.max(drag.min, Math.min(drag.max, a)));
+		const a = Math.round((drag.startA + wallX(e) - drag.startX) / step) * step;
+		const lo = Math.ceil(drag.min / step - 1e-9) * step;
+		const hi = Math.floor(drag.max / step + 1e-9) * step;
+		onmove(drag.id, lo <= hi ? Math.max(lo, Math.min(hi, a)) : Math.max(drag.min, Math.min(drag.max, a)));
 	}
 	function up() {
 		drag = null;

@@ -129,12 +129,17 @@ export function wallGrout(run: Run, atStart: boolean, atEnd: boolean, heightIn: 
 	const courses = Math.max(1, Math.round(Math.max(COURSE_IN, heightIn) / COURSE_IN));
 	const H = courses * COURSE_IN;
 	const solid = !spacingIn || spacingIn <= COURSE_IN;
-	// Openings are laid to the block module: sides out to the 8″ grid
-	// (a 36″ door gets a 40″ masonry opening), sill down and head up to a
-	// course line.
+	// Openings are laid to the block module: the width up to whole 8″
+	// units (a 36″ door gets a 40″ masonry opening), the left side on the
+	// nearest 8″ line, sill down and head up to a course line. The width
+	// never depends on where the opening sits.
 	const down = (v: number) => Math.floor(v / COURSE_IN + 1e-9) * COURSE_IN;
 	const up = (v: number) => Math.ceil(v / COURSE_IN - 1e-9) * COURSE_IN;
-	const holes = place(run, H).map((p) => [Math.max(0, down(p.a)), Math.min(L, up(p.b)), down(p.sill), Math.min(H, up(p.head))] as [number, number, number, number]);
+	const holes = place(run, H).map((p) => {
+		const w = Math.min(up(p.b - p.a), down(L) || L);
+		const a = Math.max(0, Math.min(Math.round(p.a / COURSE_IN) * COURSE_IN, L - w));
+		return [a, Math.min(L, a + w), down(p.sill), Math.min(H, up(p.head))] as [number, number, number, number];
+	});
 	const cellAt = (x: number) => Math.max(0, Math.min(n - 1, Math.floor(x / COURSE_IN)));
 
 	const cols = new Set<number>();

@@ -79,7 +79,7 @@
 			<rect x={l.a} y={y(l.y0, l.y1 - l.y0)} width={l.b - l.a} height={l.y1 - l.y0} fill={poured ? 'var(--concrete)' : 'var(--grout)'} opacity={poured ? 1 : 0.75} stroke="var(--primary)" stroke-width={sw * 1.5} />
 			<text x={(l.a + l.b) / 2} y={y(l.y0, (l.y1 - l.y0) / 2)} font-size={Math.min(fs * 0.8, (l.y1 - l.y0) * 0.7)} class="lintel" class:poured text-anchor="middle" dominant-baseline="central">{poured ? 'Poured lintel' : 'Lintel'}</text>
 		{/each}
-		<OpeningHandles {handles} floor={H} {fs} {s} {onmove} {range} />
+		<OpeningHandles {handles} floor={H} {fs} {s} {onmove} {range} step={COURSE_IN} />
 		<line x1="0" x2={L} y1={H + pad} y2={H + pad} stroke="var(--faint)" stroke-width={sw} />
 		<line x1="0" x2="0" y1={H + pad * 0.5} y2={H + pad * 1.5} stroke="var(--faint)" stroke-width={sw} />
 		<line x1={L} x2={L} y1={H + pad * 0.5} y2={H + pad * 1.5} stroke="var(--faint)" stroke-width={sw} />
