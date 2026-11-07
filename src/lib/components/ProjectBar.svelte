@@ -113,7 +113,7 @@
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		margin: -4px 0 10px;
+		margin: 2px 0 12px;
 	}
 	.where {
 		flex: 1;
@@ -164,7 +164,7 @@
 		flex: 1;
 	}
 	.saved {
-		margin: -6px 4px 10px;
+		margin: -8px 4px 10px;
 	}
 	.form {
 		display: flex;
