@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         // A calculator-sized window: it can grow a little, never full screen.
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 440, height: 860),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false)
         window.title = "A2 Calc"
         window.titleVisibility = .hidden
