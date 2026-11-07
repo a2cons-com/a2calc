@@ -208,3 +208,17 @@ What to check
 
 - About > Terms of Use and Privacy Policy show the support email
 - Everything else as in 0.1.10: calculator, the three takeoffs with Plan and 3D
+
+## 0.2.1 (73), 2026-11-07
+
+Fixes the calculator display on smaller phones, and the Mac app's blank window.
+
+What changed
+
+- On smaller phones, the top of the answer and the formula above it could be cut off. Both now always fit.
+- Mac: the app no longer opens to a blank window, and the window can be dragged by its title bar.
+
+What to check
+
+- On a small phone (or a short window), type 5' 3 1/2" + 2' 10 3/4" = and check that the formula and the whole answer show.
+- Mac: the window opens with the calculator and moves by its title bar.
