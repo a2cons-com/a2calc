@@ -3,12 +3,12 @@
 	// $lib/takeoff/scene) drawn with three.js, which loads only when a 3D
 	// view opens. Solids that share a material are one instanced mesh and
 	// their outlines one line set, so thousands of blocks stay quick. Drag
-	// to turn, pinch or scroll to zoom, two fingers to pan; it draws only
-	// when something moves or changes.
+	// to turn, pinch or scroll to zoom, two fingers to pan, tap to select a
+	// wall or piece; it draws only when something moves or changes.
 	import { onMount } from 'svelte';
 	import type { Scene } from '$lib/takeoff/scene';
 
-	let { scene: input }: { scene: Scene } = $props();
+	let { scene: input, onpick }: { scene: Scene; /** A tap on a solid: its `pick` (a wall, a piece). */ onpick?: (id: number) => void } = $props();
 
 	type T3 = typeof import('three');
 	let host: HTMLDivElement;
@@ -35,6 +35,8 @@
 				renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
 				renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 				host.appendChild(renderer.domElement);
+				renderer.domElement.addEventListener('pointerdown', pointerDown);
+				renderer.domElement.addEventListener('pointerup', pointerUp);
 				scene = new T.Scene();
 				camera = new T.PerspectiveCamera(38, 1, 1, 50000);
 				scene.add(new T.HemisphereLight(0xffffff, 0x8a8070, 2.2));
@@ -62,6 +64,28 @@
 			renderer?.dispose();
 		};
 	});
+
+	// A tap (not a drag) on a solid selects what it belongs to.
+	let downAt: { x: number; y: number; t: number } | null = null;
+	function pointerDown(e: PointerEvent) {
+		downAt = e.isPrimary ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+	}
+	function pointerUp(e: PointerEvent) {
+		const d = downAt;
+		downAt = null;
+		if (!d || !onpick || !renderer || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 500) return;
+		const r = renderer.domElement.getBoundingClientRect();
+		const ray = new T.Raycaster();
+		ray.setFromCamera(new T.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+		for (const hit of ray.intersectObjects(model.children, false)) {
+			const list = hit.object.userData.solids as import('$lib/takeoff/scene').Solid[] | undefined;
+			const s = list && hit.instanceId !== undefined ? list[hit.instanceId] : undefined;
+			if (s?.pick !== undefined) {
+				onpick(s.pick);
+				return;
+			}
+		}
+	}
 
 	function size() {
 		if (!renderer) return;
@@ -112,6 +136,7 @@
 			const see = spec.opacity !== undefined && spec.opacity < 1;
 			const material = new T.MeshLambertMaterial({ color, transparent: see, opacity: spec.opacity ?? 1, depthWrite: !see });
 			const mesh = new T.InstancedMesh(unit[shape], material, list.length);
+			mesh.userData.solids = list;
 			const src = edgePts[shape].getAttribute('position');
 			const lines = spec.edges ? new Float32Array(list.length * src.count * 3) : null;
 			list.forEach((s, i) => {

@@ -6,6 +6,7 @@
 	import type { Scene } from '$lib/takeoff/scene';
 	import { prefs } from '$lib/stores/app.svelte';
 	import FloorPlan from './FloorPlan.svelte';
+	import Zoom from './Zoom.svelte';
 	import ViewToggle from './ViewToggle.svelte';
 
 	let {
@@ -32,15 +33,15 @@
 <ViewToggle title="Plan" bind:view />
 <div class="card plan">
 	{#if view === 'plan'}
-		<FloorPlan {plan} {height} {selected} {onselect} {material} />
+		<Zoom><FloorPlan {plan} {height} {selected} {onselect} {material} /></Zoom>
 		<p class="fine hint">
-			{walls > 1 ? 'Tap a wall to edit it.' : 'Add a wall to turn a corner.'}{plan.gap ? ` The walls miss closing by ${formatFtIn(plan.gap.size, prefs.precision)}.` : ''}
+			{walls > 1 ? 'Tap a wall to edit it; pinch to zoom.' : 'Add a wall to turn a corner. Pinch to zoom.'}{plan.gap ? ` The walls miss closing by ${formatFtIn(plan.gap.size, prefs.precision)}.` : ''}
 		</p>
 	{:else}
 		{#await import('./Scene3D.svelte') then { default: Scene3D }}
-			<Scene3D scene={scene()} />
+			<Scene3D scene={scene()} onpick={walls > 1 ? onselect : undefined} />
 		{/await}
-		<p class="fine hint">Drag to turn, pinch to zoom, two fingers to move.</p>
+		<p class="fine hint">{walls > 1 ? 'Tap a wall to edit it. ' : ''}Drag to turn, pinch to zoom, two fingers to move.</p>
 	{/if}
 </div>
 

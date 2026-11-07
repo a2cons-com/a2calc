@@ -9,6 +9,7 @@
 	import ConcreteSketch from '$lib/components/ConcreteSketch.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import ConcretePlan from '$lib/components/ConcretePlan.svelte';
+	import Zoom from '$lib/components/Zoom.svelte';
 	import ViewToggle from '$lib/components/ViewToggle.svelte';
 	import { concreteScene, MAX_COPIES } from '$lib/takeoff/scene';
 
@@ -87,13 +88,13 @@
 			{#if view === 'sketch'}
 				<ConcreteSketch {piece} />
 			{:else if view === 'plan'}
-				<ConcretePlan {piece} />
+				<Zoom><ConcretePlan {piece} /></Zoom>
 			{:else}
 				{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
-					<Scene3D scene={concreteScene(st.pieces, sel)} />
+					<Scene3D scene={concreteScene(st.pieces, sel)} onpick={(i) => (st.selected = i)} />
 				{/await}
 				<p class="fine hint">
-					Every piece, side by side{st.pieces.some((p) => p.count > MAX_COPIES) ? ` (at most ${MAX_COPIES} of each)` : ''}; this one is tinted. Drag to turn, pinch to zoom.
+					Every piece, side by side{st.pieces.some((p) => p.count > MAX_COPIES) ? ` (at most ${MAX_COPIES} of each)` : ''}; this one is tinted; tap a piece to pick it. Drag to turn, pinch to zoom.
 				</p>
 			{/if}
 			<div class="kinds">

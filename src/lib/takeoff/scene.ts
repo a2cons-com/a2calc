@@ -20,6 +20,8 @@ export interface Solid {
 	ry: number;
 	mat: string;
 	shape?: 'box' | 'cyl';
+	/** What a tap on it selects: a wall's run id, a concrete piece's index. */
+	pick?: number;
 }
 
 export interface Mat {
@@ -71,6 +73,7 @@ export function framingScene(runs: RunFraming[], plan: Plan, selected: number): 
 		const rf = runs[i];
 		if (!rf) return;
 		const on = w.run.id === selected && plan.walls.length > 1;
+		const from = solids.length;
 		for (const m of rf.members) {
 			if (m.role === 'header' && m.plies === 0) continue;
 			const key = m.role + (on ? '*' : '');
@@ -79,6 +82,7 @@ export function framingScene(runs: RunFraming[], plan: Plan, selected: number): 
 		}
 		for (const p of rf.placed)
 			if (p.o.kind === 'window') solids.push(onWall(w, p.a, p.b - p.a, bottom(p.o), p.head - bottom(p.o), t / 2, 0.5, 'glass'));
+		for (let j = from; j < solids.length; j++) solids[j].pick = w.run.id;
 	});
 	return { solids, mats };
 }
@@ -108,6 +112,7 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, cellsP
 	const grout = wallsGrout(plan.walls.map((w) => w.run), closed, height, spacingIn, cellsPerCorner, lintel);
 	plan.walls.forEach((w, wi) => {
 		const on = w.run.id === selected && plan.walls.length > 1;
+		const from = solids.length;
 		const g = grout[wi];
 		// Block is left out of openings, and of poured lintels.
 		const holes = poured ? [...g.holes, ...g.lintels.map((l) => [l.a, l.b, l.y0, l.y1] as [number, number, number, number])] : g.holes;
@@ -123,6 +128,7 @@ export function blockScene(plan: Plan, height: number, spacingIn: number, cellsP
 		for (const l of g.lintels)
 			solids.push(poured ? onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0, t / 2, t, 'poured') : onWall(w, l.a, l.b - l.a, l.y0, l.y1 - l.y0 - joint, t / 2, t * 0.75, 'lintel'));
 		for (const [a, b, y0, y1] of g.holes) if (y0 > 0) solids.push(onWall(w, a, b - a, y0, y1 - y0, t / 2, 0.5, 'glass'));
+		for (let j = from; j < solids.length; j++) solids[j].pick = w.run.id;
 	});
 	return { solids, mats };
 }
@@ -161,7 +167,7 @@ export function concreteScene(pieces: Piece[], selected: number): Scene {
 				size = [pos(p.a), pos(p.c), pos(p.b)];
 		}
 		const n = Math.max(1, Math.min(MAX_COPIES, Math.floor(p.count || 1)));
-		for (let k = 0; k < n; k++) solids.push({ c: [x + size[0] / 2, size[1] / 2, k * (size[2] + gap) + size[2] / 2], s: size, ry: 0, mat, shape });
+		for (let k = 0; k < n; k++) solids.push({ c: [x + size[0] / 2, size[1] / 2, k * (size[2] + gap) + size[2] / 2], s: size, ry: 0, mat, shape, pick: i });
 		x += size[0] + gap;
 	});
 	return { solids, mats };
