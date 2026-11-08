@@ -14,7 +14,8 @@ calculator's pauses stretch to fit), so the video loops without a seam.
 
   node scripts/promo/capture-calc.mjs <dir>  (DSF=3, URL=...)
   node scripts/store/capture-flow.mjs <dir>
-  python3 scripts/store/search_video.py <dir> <out.mp4>
+  python3 scripts/store/search_video.py <dir> <out.mp4> [3600x2400]
+  python3 scripts/store/search_video.py <dir> header-3840x1646.mp4 3840x1646   # the product page header
 """
 import json
 import os
@@ -24,7 +25,7 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-W, H, FPS = 3600, 2400, 30
+W, H, FPS = 3600, 2400, 30  # W, H: set from the command line
 HEL = '/System/Library/Fonts/HelveticaNeue.ttc'
 STEPS = ['Open a takeoff', 'Add a wall', 'Type its length', 'Add a window',
          'Slide it: studs reframe', 'See it in 3D', 'Get the cut list']
@@ -89,7 +90,11 @@ def per_frame(items, total):
 
 
 def main():
+    global W, H
     src, dest = sys.argv[1], sys.argv[2]
+    if len(sys.argv) > 3:
+        W, H = map(int, sys.argv[3].split('x'))
+    z = H / 2400  # everything is laid out for 2400 px tall, then scaled
     flow = json.load(open(f'{src}/flow/timeline.json'))
     flow_items = [(f'{src}/flow/{f["file"]}', f['dur'], f['touch'], f['step']) for f in flow]
     period = sum(f[1] for f in flow_items)
@@ -104,27 +109,34 @@ def main():
     calc_items = [(f'{src}/calc-full/{n}', key_t if t else pause_t, t, 0) for n, t in zip(calc_names, touch)]
 
     bg = gradient(W, H)
-    ph_h = 1980
-    top = 300
+    ph_h = round(1980 * z)
+    top = round(300 * z)
     aspect = Image.open(calc_items[0][0]).width / Image.open(calc_items[0][0]).height
-    left = Phone(bg, 200, top, ph_h, aspect)
-    mid = Phone(bg, 200 + left.w + 230, top, ph_h, aspect)
+    ph_w = round(ph_h * aspect)
+    gap = round(230 * z)
+    title = font(round(118 * z))
+    step_font = font(round(72 * z))
+    step_font_dim = font(round(72 * z), bold=False)
+    num_font = font(round(64 * z))
+    probe = ImageDraw.Draw(Image.new('RGB', (1, 1)))
+    col_w = max(max(probe.textlength(t, font=step_font) for t in STEPS) + round(160 * z),
+                probe.textlength('in a few taps', font=title)) + round(90 * z)
+    content = 2 * ph_w + gap + round(200 * z) + col_w
+    x0 = max(round(200 * z), round((W - content) / 2))
+    left = Phone(bg, x0, top, ph_h, aspect)
+    mid = Phone(bg, x0 + ph_w + gap, top, ph_h, aspect)
     d = ImageDraw.Draw(bg)
-    lab = font(84)
+    lab = font(round(84 * z))
     for ph, txt in ((left, 'Feet-inch calculator'), (mid, 'Takeoffs')):
         tw = d.textlength(txt, font=lab)
-        d.text((ph.x + (ph.w - tw) / 2, 120), txt, font=lab, fill=(255, 255, 255))
-    rx = mid.x + mid.w + 200
-    title = font(118)
-    d.text((rx, 330), 'A stud wall', font=title, fill=(255, 255, 255))
-    d.text((rx, 330 + 140), 'in a few taps', font=title, fill=(255, 255, 255))
-    foot = font(70, bold=False)
-    d.text((rx, 2150), 'Free · no ads · no account', font=foot, fill=(200, 232, 214))
-
-    step_font = font(72)
-    step_font_dim = font(72, bold=False)
-    num_font = font(64)
-    sy0, sdy = 760, 185
+        d.text((ph.x + (ph.w - tw) / 2, round(120 * z)), txt, font=lab, fill=(255, 255, 255))
+    rx = mid.x + mid.w + round(200 * z)
+    right_edge = min(W - round(90 * z), rx + col_w)
+    d.text((rx, round(330 * z)), 'A stud wall', font=title, fill=(255, 255, 255))
+    d.text((rx, round(470 * z)), 'in a few taps', font=title, fill=(255, 255, 255))
+    foot = font(round(70 * z), bold=False)
+    d.text((rx, round(2150 * z)), 'Free · no ads · no account', font=foot, fill=(200, 232, 214))
+    sy0, sdy = round(760 * z), round(185 * z)
 
     def steps_layer(cur):
         lay = Image.new('RGBA', (W, H), (0, 0, 0, 0))
@@ -134,20 +146,20 @@ def main():
             on = i == cur
             done = i < cur
             if on:
-                dl.rounded_rectangle((rx - 40, y - 34, W - 90, y + 118), 40, fill=(255, 255, 255, 255))
-            cx, cy, r = rx + 42, y + 42, 46
+                dl.rounded_rectangle((rx - round(40 * z), y - round(34 * z), right_edge, y + round(118 * z)), round(40 * z), fill=(255, 255, 255, 255))
+            cx, cy, r = rx + round(42 * z), y + round(42 * z), round(46 * z)
             if on:
                 dl.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GREEN + (255,))
                 col_n, col_t = (255, 255, 255, 255), GREEN + (255,)
             else:
-                dl.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(255, 255, 255, 200 if done else 110), width=5)
+                dl.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(255, 255, 255, 200 if done else 110), width=max(2, round(5 * z)))
                 col_n = col_t = (255, 255, 255, 215 if done else 120)
             if done:  # a check mark, drawn (the font has none)
-                dl.line([(cx - 20, cy + 2), (cx - 5, cy + 18), (cx + 22, cy - 16)], fill=col_n, width=9, joint='curve')
+                dl.line([(cx - 20 * z, cy + 2 * z), (cx - 5 * z, cy + 18 * z), (cx + 22 * z, cy - 16 * z)], fill=col_n, width=max(3, round(9 * z)), joint='curve')
             else:
                 tw = dl.textlength(str(i), font=num_font)
                 dl.text((cx - tw / 2, cy - num_font.size * 0.58), str(i), font=num_font, fill=col_n)
-            dl.text((rx + 120, y + 2), s, font=step_font if on or done else step_font_dim, fill=col_t)
+            dl.text((rx + round(120 * z), y + round(2 * z)), s, font=step_font if on or done else step_font_dim, fill=col_t)
         return lay
 
     steps_cache = {}
