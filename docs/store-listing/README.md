@@ -52,8 +52,8 @@ video with `scripts/promo/`. Push them with:
    _EMAIL / _PHONE` set.
 3. **Build**: pick the 0.2.0 build on each version (or `--build` /
    `--mac-build` once it has processed).
-4. **Add for Review**, then Submit. Release is set to manual: once
-   approved, press Release.
+4. **Add for Review**, then Submit. Release is automatic: it goes live
+   as soon as Apple approves it.
 
 ## By hand: Google Play Console
 

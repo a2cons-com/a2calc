@@ -144,7 +144,7 @@ for (const platform of platforms) {
 			relationships: { app: { data: { type: 'apps', id: app.id } } } } } })).data;
 	}
 	step(`${platform}: version ${draft.attributes?.versionString} -> ${version}, copyright, manual release`);
-	await patch('appStoreVersions', draft.id, { versionString: version, copyright: listing.copyright, releaseType: 'MANUAL' });
+	await patch('appStoreVersions', draft.id, { versionString: version, copyright: listing.copyright, releaseType: 'AFTER_APPROVAL' });
 
 	const versionLoc = (await api(`/appStoreVersions/${draft.id}/appStoreVersionLocalizations`)).data.find((l) => l.attributes.locale === listing.locale);
 	step(`${platform}: description, keywords, promotional text, URLs`);
