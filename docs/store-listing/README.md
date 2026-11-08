@@ -37,8 +37,9 @@ video with `scripts/promo/`. Push them with:
 | Category | App Store: Utilities, then Productivity. Play: Tools |
 | Price | Free, all territories |
 | Age rating | 4+ / Everyone (no objectionable content) |
-| Privacy Policy URL | https://github.com/a2cons-com/a2calc/blob/main/PRIVACY.md |
-| Support URL | https://github.com/a2cons-com/a2calc#support (support@a2cons.com) |
+| Privacy Policy URL | https://calc.a2cons.com/privacy/ |
+| Support URL | https://calc.a2cons.com/support/ (support@a2cons.com) |
+| Marketing URL | https://calc.a2cons.com/ |
 | Copyright | 2026 A2 Labs |
 | License | Apple's standard EULA; the app's own terms are in TERMS.md |
 | Export compliance | No encryption (no network use at all) |
