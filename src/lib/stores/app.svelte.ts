@@ -6,6 +6,7 @@ import type { LengthFormat, Precision, UnitId } from '$lib/calc/units';
 import { PIECE_DEFAULTS, type Piece } from '$lib/takeoff/concrete';
 import type { GroutInput } from '$lib/takeoff/grout';
 import type { WallInput } from '$lib/takeoff/framing';
+import type { StairInput } from '$lib/takeoff/stairs';
 import { persisted } from './persist.svelte';
 
 export const prefs = persisted('prefs', {
@@ -65,11 +66,29 @@ export const WALL_DEFAULT: WallInput = {
 	]
 };
 
+export const STAIRS_DEFAULT: StairInput = {
+	code: 'irc',
+	rise: 108,
+	finishBottom: 0.75,
+	finishTop: 0.75,
+	risers: null,
+	tread: 10.5,
+	nosing: 1,
+	treadThk: 1,
+	riserThk: 0.75,
+	width: 36,
+	landings: null,
+	landingDepth: 36,
+	floorDepth: 12.625,
+	stringer: '2x12'
+};
+
 // The takeoff screens edit these; a takeoff opened from a project is copied
 // in and saved back as it changes (stores/projects).
 export const concrete = persisted('concrete', structuredClone(CONCRETE_DEFAULT));
 export const grout = persisted('grout', structuredClone(GROUT_DEFAULT));
 export const wall = persisted('wall', structuredClone(WALL_DEFAULT));
+export const stairs = persisted('stairs', structuredClone(STAIRS_DEFAULT));
 
 export const convert = persisted('convert', {
 	mode: 'length' as 'length' | 'area' | 'volume' | 'dims',

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { p } from '$lib/paths';
 	import '../app.css';
 	import { page } from '$app/state';
 	import Icon from '$lib/components/Icon.svelte';
@@ -33,11 +34,15 @@
 			items: [
 				{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
 				{ href: '/takeoff/grout', label: 'Block grout', icon: 'brick' },
-				{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' }
+				{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' },
+				{ href: '/takeoff/stairs', label: 'Stairs', icon: 'stairs' }
 			]
 		}
 	];
-	const active = (href: string) => page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href + '/'));
+	const active = (href: string) => {
+		const at = page.url.pathname.slice(p('').length) || '/';
+		return at === href || (href !== '/' && at.startsWith(href + '/'));
+	};
 
 	// Light or dark: the choice in the menu, or the phone's setting. The
 	// status bar (iOS, Android) and the Mac window follow it.
@@ -99,14 +104,14 @@
 			{#if g.title}<div class="section-title">{g.title}</div>{/if}
 			<div class="tiles">
 				{#each g.items as m (m.href)}
-					<a href={m.href} class="tile" class:on={active(m.href)} aria-current={active(m.href) ? 'page' : undefined} onclick={() => (nav.open = false)}>
+					<a href={p(m.href)} class="tile" class:on={active(m.href)} aria-current={active(m.href) ? 'page' : undefined} onclick={() => (nav.open = false)}>
 						<span class="ico"><Icon name={m.icon} size={30} /></span>
 						<span class="lbl">{m.label}</span>
 					</a>
 				{/each}
 			</div>
 		{/each}
-		<a href="/about" class="row" class:on={active('/about')} onclick={() => (nav.open = false)}>
+		<a href={p('/about')} class="row" class:on={active('/about')} onclick={() => (nav.open = false)}>
 			<Icon name="info" size={20} /><span>About and help</span>
 		</a>
 	</nav>
@@ -130,8 +135,8 @@
 		<p>Feet, inches and fractions; areas and volumes; quick concrete, block grout and stud wall takeoffs. Free, with no ads and no account.</p>
 		<p class="fine">
 			Use at your own risk: A2 Calc is an estimating aid, not engineering advice, and nothing it shows is a sealed or certified calculation. Check every
-			number before you build, order or bid with it. By using the app you agree to the <a href="/terms" onclick={() => (disclaimer = false)}>Terms of Use</a>; it collects
-			nothing (<a href="/privacy" onclick={() => (disclaimer = false)}>Privacy Policy</a>).
+			number before you build, order or bid with it. By using the app you agree to the <a href={p('/terms')} onclick={() => (disclaimer = false)}>Terms of Use</a>; it collects
+			nothing (<a href={p('/privacy')} onclick={() => (disclaimer = false)}>Privacy Policy</a>).
 		</p>
 		<button class="btn solid" onclick={() => (disclaimer = false)}>Got it</button>
 	</div>

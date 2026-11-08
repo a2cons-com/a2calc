@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { p } from '$lib/paths';
 	import Logo from '$lib/components/Logo.svelte';
 	import AppMark from '$lib/components/AppMark.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
@@ -65,8 +66,8 @@
 		nothing it shows is a sealed or certified calculation, and A2 Labs takes no responsibility for how its results are used. Nothing you type leaves
 		your phone.
 		<div class="docs">
-			<a href="/terms">Terms of Use</a>
-			<a href="/privacy">Privacy Policy</a>
+			<a href={p('/terms')}>Terms of Use</a>
+			<a href={p('/privacy')}>Privacy Policy</a>
 		</div>
 	</div>
 

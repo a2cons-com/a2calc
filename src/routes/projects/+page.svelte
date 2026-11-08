@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { p as pth } from '$lib/paths';
 	// Projects: the list, and one project (?p=id) with its takeoffs.
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -57,7 +58,7 @@
 		const p = createProject(newName || 'Untitled project');
 		newOpen = false;
 		newName = '';
-		goto(`/projects?p=${p.id}`);
+		goto(pth(`/projects?p=${p.id}`));
 	}
 	function saveEdit() {
 		if (!project) return;
@@ -69,7 +70,7 @@
 	function open(t: Takeoff) {
 		if (!project) return;
 		const path = openTakeoff(project.id, t.id);
-		if (path) goto(path);
+		if (path) goto(pth(path));
 	}
 	function add(kind: TakeoffKind) {
 		if (!project) return;
@@ -82,7 +83,7 @@
 		deleteProject(project.id);
 		confirmDelete = false;
 		editOpen = false;
-		goto('/projects');
+		goto(pth('/projects'));
 	}
 	function renameTakeoff() {
 		if (menuFor && renameT.trim() && project) {
@@ -99,7 +100,7 @@
 	{#if pid && !project}
 		<ToolHead title="Projects" />
 		<p class="fine">That project isn't here any more.</p>
-		<a class="btn" href="/projects">All projects</a>
+		<a class="btn" href={pth('/projects')}>All projects</a>
 	{:else if project}
 		<ToolHead title="Project" back="/projects" />
 		<button class="proj-head" onclick={() => ((editName = project.name), (editNote = project.note), (editOpen = true))}>
@@ -134,7 +135,7 @@
 			<button class="btn" onclick={() => (exportOpen = true)} disabled={!project.takeoffs.length}><Icon name="share" size={18} /> Export</button>
 		</div>
 		<div class="actions minor">
-			<button class="btn quiet" onclick={() => { const c = duplicateProject(project.id); if (c) goto(`/projects?p=${c.id}`); }}>Duplicate project</button>
+			<button class="btn quiet" onclick={() => { const c = duplicateProject(project.id); if (c) goto(pth(`/projects?p=${c.id}`)); }}>Duplicate project</button>
 			<button class="btn danger" onclick={() => (confirmDelete = true)}><Icon name="trash" size={16} /> Delete</button>
 		</div>
 
@@ -187,7 +188,7 @@
 		{#if shown.length}
 			<div class="list">
 				{#each shown as p (p.id)}
-					<a class="item" href="/projects?p={p.id}">
+					<a class="item" href={pth(`/projects?p=${p.id}`)}>
 						<span class="ico"><Icon name="folder" size={22} /></span>
 						<span class="txt">
 							<b>{p.name}</b>

@@ -3,10 +3,10 @@
 // (stores/app); opening a project's takeoff copies it in and links the two,
 // and every change is saved back into the project while the link stays.
 
-import { concrete, CONCRETE_DEFAULT, grout, GROUT_DEFAULT, newId, wall, WALL_DEFAULT } from './app.svelte';
+import { concrete, CONCRETE_DEFAULT, grout, GROUT_DEFAULT, newId, stairs, STAIRS_DEFAULT, wall, WALL_DEFAULT } from './app.svelte';
 import { persisted } from './persist.svelte';
 
-export type TakeoffKind = 'framing' | 'grout' | 'concrete';
+export type TakeoffKind = 'framing' | 'grout' | 'concrete' | 'stairs';
 
 export interface Takeoff {
 	id: number;
@@ -26,18 +26,18 @@ export interface Project {
 	takeoffs: Takeoff[];
 }
 
-export const KIND_NAME: Record<TakeoffKind, string> = { framing: 'Stud wall', grout: 'Block fill grout', concrete: 'Concrete' };
-export const KIND_ICON: Record<TakeoffKind, string> = { framing: 'studs', grout: 'brick', concrete: 'slab' };
-export const KIND_PATH: Record<TakeoffKind, string> = { framing: '/takeoff/framing', grout: '/takeoff/grout', concrete: '/takeoff/concrete' };
-export const KINDS: TakeoffKind[] = ['framing', 'grout', 'concrete'];
+export const KIND_NAME: Record<TakeoffKind, string> = { framing: 'Stud wall', grout: 'Block fill grout', concrete: 'Concrete', stairs: 'Stairs' };
+export const KIND_ICON: Record<TakeoffKind, string> = { framing: 'studs', grout: 'brick', concrete: 'slab', stairs: 'stairs' };
+export const KIND_PATH: Record<TakeoffKind, string> = { framing: '/takeoff/framing', grout: '/takeoff/grout', concrete: '/takeoff/concrete', stairs: '/takeoff/stairs' };
+export const KINDS: TakeoffKind[] = ['framing', 'grout', 'concrete', 'stairs'];
 
-const STORE: Record<TakeoffKind, object> = { framing: wall, grout, concrete };
-const DEFAULT: Record<TakeoffKind, object> = { framing: WALL_DEFAULT, grout: GROUT_DEFAULT, concrete: CONCRETE_DEFAULT };
+const STORE: Record<TakeoffKind, object> = { framing: wall, grout, concrete, stairs };
+const DEFAULT: Record<TakeoffKind, object> = { framing: WALL_DEFAULT, grout: GROUT_DEFAULT, concrete: CONCRETE_DEFAULT, stairs: STAIRS_DEFAULT };
 
 export const projects = persisted('projects', { list: [] as Project[] });
 
 /** The project takeoff each screen is editing, if any. */
-export const editing = persisted('editing', { framing: null, grout: null, concrete: null } as Record<TakeoffKind, { p: number; t: number } | null>);
+export const editing = persisted('editing', { framing: null, grout: null, concrete: null, stairs: null } as Record<TakeoffKind, { p: number; t: number } | null>);
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 

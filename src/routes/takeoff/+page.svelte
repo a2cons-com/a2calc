@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { p } from '$lib/paths';
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	const TOOLS = [
 		{ href: '/takeoff/concrete', icon: 'slab', title: 'Concrete', text: 'Slabs, footings, walls, beams and columns, with waste and pump loss, rounded to what you order.' },
 		{ href: '/takeoff/grout', icon: 'brick', title: 'Block fill grout', text: 'Grout for a CMU wall, solid or cells at a spacing, with corners and jambs. Block count too.' },
-		{ href: '/takeoff/framing', icon: 'studs', title: 'Stud wall', text: 'Studs, plates, kings, jacks, headers and cripples for wood walls with doors and windows.' }
+		{ href: '/takeoff/framing', icon: 'studs', title: 'Stud wall', text: 'Studs, plates, kings, jacks, headers and cripples for wood walls with doors and windows.' },
+		{ href: '/takeoff/stairs', icon: 'stairs', title: 'Stairs', text: 'Risers, treads, landings and the stringer layout between two floors, with the floor opening headroom needs.' }
 	];
 </script>
 
@@ -14,7 +16,7 @@
 	<ToolHead title="Takeoff" />
 	<div class="list">
 		{#each TOOLS as t (t.href)}
-			<a class="tool card" href={t.href}>
+			<a class="tool card" href={p(t.href)}>
 				<span class="ico"><Icon name={t.icon} size={26} /></span>
 				<span class="txt">
 					<span class="t">{t.title}</span>

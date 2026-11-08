@@ -9,6 +9,7 @@ import { KIND_NAME } from '$lib/stores/projects.svelte';
 import { bags80, concreteOrder, pieceIn3, PIECE_FIELDS, PIECE_NAMES } from '$lib/takeoff/concrete';
 import { frameWall, type WallInput } from '$lib/takeoff/framing';
 import { groutVolume, wallTotals } from '$lib/takeoff/grout';
+import { stairs, stairCuts, codeNotes, type StairInput } from '$lib/takeoff/stairs';
 
 export interface Table {
 	title: string;
@@ -164,9 +165,38 @@ function concreteReport(c: ConcreteData, den: number): Omit<Report, 'kind' | 'ki
 	};
 }
 
+function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindName' | 'name'> {
+	const ft = (v: number) => formatFtIn(v, den);
+	const r = stairs(s);
+	const summary: [string, string][] = [
+		['Riser height', ft(r.riser)],
+		['Treads', `${r.treads} at ${ft(s.tread)} run`],
+		['Finished rise', `${ft(r.finishedRise)} (rough ${ft(s.rise)})`],
+		['Total run', ft(r.run)],
+		['Landings', r.landings ? `${r.landings} at ${ft(s.landingDepth)}` : 'None'],
+		['Floor opening', r.opening > 0 ? `${ft(r.opening)} long` : 'None needed'],
+		['Stringer, first rise', ft(r.flights[0]?.firstRise ?? 0)],
+		['Stringer, top drop', `${ft(r.topDrop)} below the upper subfloor`],
+		['Angle', `${formatNumber(r.angle, 1)}°`]
+	];
+	return {
+		headline: { label: 'Risers', value: String(r.risers), unit: `at ${ft(r.riser)}` },
+		summary,
+		tables: [{ title: 'Cut list', cols: ['Item', 'Size', 'Qty'], numFrom: 2, rows: stairCuts(s, r, ft).map((c) => [c.what, c.size, String(c.count)]) }],
+		warnings: r.warnings,
+		notes: [codeNotes(r.limits, (v) => formatFtIn(v, den, v < 60)).join(' ')]
+	};
+}
+
 export function takeoffReport(t: Takeoff, den: number): Report {
 	const body =
-		t.kind === 'framing' ? framing(t.data as WallInput, den) : t.kind === 'grout' ? blockGrout(t.data as GroutData, den) : concreteReport(t.data as ConcreteData, den);
+		t.kind === 'framing'
+			? framing(t.data as WallInput, den)
+			: t.kind === 'grout'
+				? blockGrout(t.data as GroutData, den)
+				: t.kind === 'stairs'
+					? stairsReport(t.data as StairInput, den)
+					: concreteReport(t.data as ConcreteData, den);
 	return { kind: t.kind, kindName: KIND_NAME[t.kind], name: t.name, ...body };
 }
 
@@ -174,7 +204,7 @@ export function takeoffReport(t: Takeoff, den: number): Report {
 export function takeoffLine(t: Takeoff, den: number): string {
 	try {
 		const h = takeoffReport(t, den).headline;
-		return t.kind === 'framing' ? `${h.value} studs` : `${h.value} ${h.unit}`;
+		return t.kind === 'framing' ? `${h.value} studs` : t.kind === 'stairs' ? `${h.value} risers ${h.unit}` : `${h.value} ${h.unit}`;
 	} catch {
 		return '';
 	}

@@ -5,11 +5,13 @@
 # Enforce HTTPS. To redeploy, start a new run (Actions > Site > Run
 # workflow), not "Re-run": a re-run uploads a second github-pages
 # artifact into the same run and deploy-pages refuses it.
+# The web version of the app is built with BASE_PATH=/app and served at
+# calc.a2cons.com/app/.
 name: Site
 on:
   push:
     branches: [main]
-    paths: [site/**, TERMS.md, PRIVACY.md, scripts/site-build.mjs, .github/workflows/pages.yml]
+    paths: [site/**, TERMS.md, PRIVACY.md, scripts/site-build.mjs, .github/workflows/pages.yml, src/**, static/**, config/**, vite.config.ts, package.json, package-lock.json]
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +31,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci
+      - run: npm run build
+        env:
+          BASE_PATH: /app
       - run: node scripts/site-build.mjs
+        env:
+          WEB_APP: '1'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

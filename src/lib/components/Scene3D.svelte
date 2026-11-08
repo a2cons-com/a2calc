@@ -126,6 +126,7 @@
 		const up = new T.Vector3(0, 1, 0);
 		const v = new T.Vector3();
 		const sc = new T.Vector3();
+		const eu = new T.Euler();
 		let min = new T.Vector3(Infinity, 0, Infinity);
 		let max = new T.Vector3(-Infinity, 1, -Infinity);
 		for (const [key, list] of groups) {
@@ -140,7 +141,8 @@
 			const src = edgePts[shape].getAttribute('position');
 			const lines = spec.edges ? new Float32Array(list.length * src.count * 3) : null;
 			list.forEach((s, i) => {
-				q.setFromAxisAngle(up, s.ry);
+				if (s.rz) q.setFromEuler(eu.set(0, s.ry, s.rz, 'YZX'));
+				else q.setFromAxisAngle(up, s.ry);
 				mtx.compose(v.set(...s.c), q, sc.set(...s.s));
 				mesh.setMatrixAt(i, mtx);
 				const cs = Math.abs(Math.cos(s.ry));

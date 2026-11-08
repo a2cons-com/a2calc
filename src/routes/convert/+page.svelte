@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { p } from '$lib/paths';
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import { goto } from '$app/navigation';
 	import * as C from '$lib/calc/calculator';
@@ -42,7 +43,7 @@
 
 	function use(q: Quantity) {
 		calc.s = C.insert(calc.s, q, den);
-		goto('/');
+		goto(p('/'));
 	}
 </script>
 

@@ -10,6 +10,7 @@ import type { Opening, Role, RunFraming } from './framing';
 import { COURSE_IN, UNIT_IN, wallsGrout, type LintelKind } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
+import { STRINGER_DEPTH, type StairInput, type StairResult } from './stairs';
 
 export interface Solid {
 	/** Center. */
@@ -18,6 +19,8 @@ export interface Solid {
 	s: [number, number, number];
 	/** Turn about the vertical axis, radians. */
 	ry: number;
+	/** Tilt about the solid's own z (across), radians: a sloped stringer. */
+	rz?: number;
 	mat: string;
 	shape?: 'box' | 'cyl';
 	/** What a tap on it selects: a wall's run id, a concrete piece's index. */
@@ -170,5 +173,74 @@ export function concreteScene(pieces: Piece[], selected: number): Scene {
 		for (let k = 0; k < n; k++) solids.push({ c: [x + size[0] / 2, size[1] / 2, k * (size[2] + gap) + size[2] / 2], s: size, ry: 0, mat, shape, pick: i });
 		x += size[0] + gap;
 	});
+	return { solids, mats };
+}
+
+/** A stair along x (width along z): floors, the upper floor seen through,
+ *  stringers, treads and risers, landings on posts. */
+export function stairScene(input: StairInput, r: StairResult): Scene {
+	const solids: Solid[] = [];
+	const mats: Record<string, Mat> = {
+		slab: { color: '--concrete', edges: true, edge: '--concrete-side' },
+		floor: { color: '--concrete-top', opacity: 0.35 },
+		stringer: { color: '--wood', edges: true },
+		tread: { color: '--wood-header', edges: true },
+		riser: { color: '--plate', edges: true },
+		frame: { color: '--wood-king', edges: true }
+	};
+	const W = Math.max(12, input.width);
+	const T = Math.max(1, input.tread);
+	const tt = Math.max(0, input.treadThk);
+	const rt = Math.max(0, input.riserThk);
+	const nose = Math.max(0, input.nosing);
+	const fd = Math.max(1, input.floorDepth);
+	const rise = Math.max(1, input.rise);
+	const D = STRINGER_DEPTH[input.stringer];
+	const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, mat: string): Solid => ({
+		c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2],
+		s: [Math.max(0.1, x1 - x0), Math.max(0.1, y1 - y0), Math.max(0.1, z1 - z0)],
+		ry: 0,
+		mat
+	});
+	const before = 36;
+	const after = Math.max(36, input.landingDepth);
+	solids.push(box(-before, r.run + after, -4, 0, -12, W + 12, 'slab'));
+	if (r.openingAt > -before) solids.push(box(-before, r.openingAt, rise - fd, rise, -12, W + 12, 'floor'));
+	solids.push(box(r.run, r.run + after, rise - fd, rise, -12, W + 12, 'floor'));
+
+	// Stringers, spread across the width.
+	const zs = Array.from({ length: r.stringers }, (_, i) => 0.75 + ((W - 1.5) * i) / Math.max(1, r.stringers - 1));
+	const R = r.riser;
+	const th = Math.atan2(R, T);
+	const drop = Math.max(0.5, r.throat);
+	for (const f of r.flights) {
+		if (f.risers < 2) continue;
+		const c1 = f.seat + f.firstRise;
+		const inner = (x: number) => c1 + (x - (f.x0 + T)) * (R / T);
+		const xa = f.x0;
+		const xb = f.x1;
+		const len = (xb - xa) / Math.cos(th);
+		const xm = (xa + xb) / 2;
+		const ym = inner(xm);
+		for (const z of zs) {
+			solids.push({ c: [xm + (Math.sin(th) * drop) / 2, ym - (Math.cos(th) * drop) / 2, z], s: [len, drop, 1.5], ry: 0, rz: th, mat: 'stringer' });
+			// The teeth under each tread.
+			for (let k = 1; k < f.risers; k++) {
+				const x0 = f.x0 + (k - 1) * T;
+				const c = c1 + (k - 1) * R;
+				solids.push(box(x0, x0 + T, c - R, c, z - 0.75, z + 0.75, 'stringer'));
+			}
+		}
+	}
+	for (const s of r.steps) {
+		if (s.kind === 'tread') solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
+		if (s.kind === 'landing') {
+			solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
+			solids.push(box(s.x0, s.x1, s.y - tt - D, s.y - tt, 0, W, 'frame'));
+			for (const px of [s.x0 + 1.75, s.x1 - 1.75]) for (const pz of [1.75, W - 1.75]) solids.push(box(px - 1.75, px + 1.75, 0, s.y - tt - D, pz - 1.75, pz + 1.75, 'frame'));
+		}
+		const top = s.y - (s.kind === 'top' ? Math.max(0, input.finishTop) : tt);
+		solids.push(box(s.x0 - rt, s.x0, top - r.riserBoard, top, 0, W, 'riser'));
+	}
 	return { solids, mats };
 }

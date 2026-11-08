@@ -147,7 +147,19 @@ write('privacy/index.html', legal(readFileSync(join(ROOT, 'PRIVACY.md'), 'utf8')
 paths.push('/terms/', '/privacy/');
 
 for (const f of ['site.css', 'favicon.svg', 'CNAME', 'img', 'video']) cpSync(join(SRC, f), join(OUT, f), { recursive: true });
-write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`);
+// The web app, if built for /app (BASE_PATH=/app npm run build): under
+// /app/, with a copy of its page at every screen so a reload or a shared
+// link opens (Pages has no fallback to index.html). Kept out of search.
+const APP = join(ROOT, 'build');
+const appBuilt = process.env.WEB_APP && readFileSync(join(APP, 'index.html'), 'utf8').includes('/app/_app/');
+if (appBuilt) {
+  cpSync(APP, join(OUT, 'app'), { recursive: true });
+  const index = readFileSync(join(APP, 'index.html'), 'utf8');
+  const screens = (dir, rel = '') => readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('(') && !d.name.startsWith('['))
+    .flatMap((d) => [rel + d.name, ...screens(join(dir, d.name), rel + d.name + '/')]);
+  for (const s of screens(join(ROOT, 'src', 'routes'))) write(`app/${s}/index.html`, index);
+}
+write('robots.txt', `User-agent: *\nAllow: /\n${appBuilt ? 'Disallow: /app/\n' : ''}\nSitemap: ${ORIGIN}/sitemap.xml\n`);
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
   paths.sort().map((p) => `  <url><loc>${ORIGIN}${p}</loc></url>`).join('\n')}\n</urlset>\n`);
-console.log(`_site/: ${paths.length} pages`);
+console.log(`_site/: ${paths.length} pages${appBuilt ? ' and the web app' : ''}`);

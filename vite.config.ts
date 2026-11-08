@@ -15,7 +15,9 @@ export default defineConfig({
 			compilerOptions: {
 				runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 			},
-			adapter: adapter({ fallback: 'index.html' })
+			adapter: adapter({ fallback: 'index.html' }),
+			// The web version on calc.a2cons.com lives under /app.
+			paths: { base: process.env.BASE_PATH ?? '' }
 		})
 	],
 	server: { host: true, port: 5180 },

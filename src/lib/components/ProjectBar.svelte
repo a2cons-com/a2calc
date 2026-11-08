@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { p } from '$lib/paths';
 	// Under a takeoff screen's title: which project takeoff this is (saved as
 	// it changes), or a Save to project button; and Export.
 	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
 	import Sheet from './Sheet.svelte';
 	import ExportSheet from './ExportSheet.svelte';
-	import { concrete, grout, wall } from '$lib/stores/app.svelte';
+	import { concrete, grout, stairs, wall } from '$lib/stores/app.svelte';
 	import {
 		closeTakeoff,
 		createProject,
@@ -47,7 +48,7 @@
 	}
 
 	// Exporting a takeoff that isn't in a project: a one-off project of it.
-	const STORE = { framing: wall, grout, concrete };
+	const STORE = { framing: wall, grout, concrete, stairs };
 	const scratch = $derived<Project>({
 		id: 0,
 		name: KIND_NAME[kind],
@@ -62,7 +63,7 @@
 
 <div class="bar">
 	{#if linked}
-		<button class="where" onclick={() => goto(`/projects?p=${linked.project.id}`)}>
+		<button class="where" onclick={() => goto(p(`/projects?p=${linked.project.id}`))}>
 			<Icon name="folder" size={18} />
 			<span class="names"><span class="proj">{linked.project.name}</span><span class="sep">›</span><span class="tk">{linked.takeoff.name}</span></span>
 		</button>

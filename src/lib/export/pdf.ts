@@ -15,6 +15,9 @@ import FloorPlan from '$lib/components/FloorPlan.svelte';
 import WallElevation from '$lib/components/WallElevation.svelte';
 import BlockElevation from '$lib/components/BlockElevation.svelte';
 import ConcreteSketch from '$lib/components/ConcreteSketch.svelte';
+import StairSection from '$lib/components/StairSection.svelte';
+import StairPlan from '$lib/components/StairPlan.svelte';
+import { stairs, type StairInput } from '$lib/takeoff/stairs';
 
 // Letter, in points.
 const W = 612;
@@ -124,6 +127,11 @@ async function drawings(t: Takeoff): Promise<Drawing[]> {
 			if (!grid[i]) continue;
 			out.push(await renderDrawing(BlockElevation, { wall: plan.walls[i], height: g.heightIn, spacingIn: g.spacingIn, grout: grid[i], poured: g.lintel === 'poured' }, `Wall ${i + 1}`));
 		}
+	} else if (t.kind === 'stairs') {
+		const s = t.data as StairInput;
+		const r = stairs(s);
+		out.push(await renderDrawing(StairSection, { input: s, r }, 'Section', 1600));
+		out.push(await renderDrawing(StairPlan, { input: s, r }, 'Plan', 1400));
 	} else {
 		const c = t.data as ConcreteData;
 		for (const p of c.pieces) out.push(await renderDrawing(ConcreteSketch, { piece: p }, '', 900));
