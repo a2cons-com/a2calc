@@ -5,7 +5,10 @@ white cards with real app footage, one small line of text. Muted and
 looping: the last scene crossfades into the first frame, so the loop has
 no seam.
 
-Scenes (30 fps): the stud wall (3D turning beside the wall drawing, a
+Scenes (30 fps), search video only first: the phone screen with a plain
+feet-inch-fraction sum typed key by key (frames from
+scripts/promo/capture-calc.mjs, DSF=3, in <frames-dir>/calc-full). Then
+the stud wall (3D turning beside the wall drawing, a
 window sliding along it and back), then the block wall and concrete in
 3D side by side.
 
@@ -100,7 +103,7 @@ def layout(W, H):
     return fs, [(x0, top, cw, ch), (x0 + cw + gap, top, cw, ch)]
 
 
-def compose(frames_dir, W, H):
+def compose(frames_dir, W, H, intro=False, turn_len=None):
     bg = gradient(W, H)
     fs, boxes = layout(W, H)
     font = ImageFont.truetype(FONT[0], fs, index=FONT[1])
@@ -129,8 +132,19 @@ def compose(frames_dir, W, H):
     def turn_frame(i):
         return scene(load(f'{frames_dir}/block/{blocks[i]}'), load(f'{frames_dir}/concrete/{concs[i]}'))
 
-    # wall scene, crossfade into the turn scene, then crossfade back to wall frame 0
-    for i in range(n_wall - FADE):
+    if turn_len:
+        n_turn = min(n_turn, turn_len)
+    calc = calc_intro(frames_dir, W, H, gradient(W, H)) if intro else None
+    if calc:
+        for f in calc[:-FADE]:
+            yield f
+        for k in range(FADE):
+            yield Image.blend(calc[len(calc) - FADE + k], wall_frame(k), (k + 1) / (FADE + 1))
+        start = FADE
+    else:
+        start = 0
+    # wall scene, crossfade into the turn scene, then crossfade back to the first frame
+    for i in range(start, n_wall - FADE):
         yield wall_frame(i)
     for k in range(FADE):
         a = wall_frame(n_wall - FADE + k)
@@ -138,9 +152,63 @@ def compose(frames_dir, W, H):
         yield Image.blend(a, b, (k + 1) / (FADE + 1))
     for i in range(FADE, n_turn - FADE):
         yield turn_frame(i)
-    first = wall_frame(0)
+    first = calc[0] if calc else wall_frame(0)
     for k in range(FADE):
         yield Image.blend(turn_frame(n_turn - FADE + k), first, (k + 1) / (FADE + 1))
+
+
+def calc_intro(frames_dir, W, H, bg_full):
+    """The phone, full screen calculator, typed key by key, beside the words.
+    Returns the 30 fps frames and the first one (for the loop back)."""
+    import json
+    names = sorted(f for f in os.listdir(f'{frames_dir}/calc-full') if f.endswith('.png'))
+    touch = json.load(open(f'{frames_dir}/calc-full/touch.json'))
+    # seconds on screen per captured frame: a key press 0.11 s (two frames), a pause longer
+    times = [0.11 if t else (0.15 if i < 4 else 0.24) for i, t in enumerate(touch)]
+    bg = bg_full.copy()
+    ph_h = round(H * 0.84)
+    sw, sh = load(f'{frames_dir}/calc-full/{names[0]}').size
+    ph_w = round(ph_h * sw / sh)
+    bez = round(ph_h * 0.016)
+    x0 = round(W * 0.14)
+    y0 = (H - ph_h) // 2
+    card = Card(ph_w + 2 * bez, ph_h + 2 * bez, round(ph_h * 0.075))
+    card.paste_shadow(bg, x0 - bez, y0 - bez)
+    d = ImageDraw.Draw(bg)
+    d.rounded_rectangle((x0 - bez, y0 - bez, x0 + ph_w + bez, y0 + ph_h + bez), round(ph_h * 0.075), fill=(14, 18, 16))
+    bold = ImageFont.truetype(FONT[0], round(H * 0.088), index=1)
+    reg = ImageFont.truetype(FONT[0], round(H * 0.042), index=0)
+    tx = x0 + ph_w + bez + round(W * 0.07)
+    lines = [('Feet, inches,', bold), ('fractions.', bold)]
+    y = round(H * 0.34)
+    for txt, f in lines:
+        d.text((tx, y), txt, font=f, fill=(255, 255, 255))
+        y += round(f.size * 1.18)
+    y += round(H * 0.03)
+    d.text((tx, y), 'A calculator that speaks', font=reg, fill=(214, 238, 224))
+    d.text((tx, y + round(reg.size * 1.3)), 'tape measure.', font=reg, fill=(214, 238, 224))
+    smask = Image.new('L', (ph_w, ph_h), 0)
+    ImageDraw.Draw(smask).rounded_rectangle((0, 0, ph_w - 1, ph_h - 1), round(ph_h * 0.062), fill=255)
+    k = ph_w / 390
+    frames = []
+    cache = {}
+    for i, (name, dt) in enumerate(zip(names, times)):
+        if name not in cache:
+            cache.clear()
+            out = bg.copy()
+            scr = load(f'{frames_dir}/calc-full/{name}').resize((ph_w, ph_h), Image.LANCZOS)
+            out.paste(scr, (x0, y0), smask)
+            if touch[i]:
+                cx, cy = x0 + touch[i][0] * k, y0 + touch[i][1] * k
+                r = round(ph_w * 0.075)
+                lay = Image.new('RGBA', out.size, (0, 0, 0, 0))
+                ld = ImageDraw.Draw(lay)
+                ld.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(0, 104, 57, 60), outline=(0, 104, 57, 200), width=max(4, r // 10))
+                ld.ellipse((cx - r * 0.36, cy - r * 0.36, cx + r * 0.36, cy + r * 0.36), fill=(0, 104, 57, 170))
+                out = Image.alpha_composite(out.convert('RGBA'), lay).convert('RGB')
+            cache[name] = out
+        frames += [cache[name]] * max(1, round(dt * FPS))
+    return frames
 
 
 def encode(frames, W, H, path):
@@ -166,4 +234,4 @@ if __name__ == '__main__':
     if 'header' in only:
         encode(compose(frames_dir, 3840, 1646), 3840, 1646, f'{out}/header-3840x1646.mp4')
     if 'search' in only:
-        encode(compose(frames_dir, 3600, 2400), 3600, 2400, f'{out}/search-3600x2400.mp4')
+        encode(compose(frames_dir, 3600, 2400, intro=True, turn_len=165), 3600, 2400, f'{out}/search-3600x2400.mp4')
