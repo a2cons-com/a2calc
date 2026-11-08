@@ -17,7 +17,7 @@ export default defineConfig({
 			},
 			adapter: adapter({ fallback: 'index.html' }),
 			// The web version on calc.a2cons.com lives under /app.
-			paths: { base: process.env.BASE_PATH ?? '' }
+			paths: { base: (process.env.BASE_PATH ?? '') as '' | `/${string}` }
 		})
 	],
 	server: { host: true, port: 5180 },
