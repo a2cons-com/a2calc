@@ -357,3 +357,35 @@ describe('export report', async () => {
 		expect(csv).toContain('"Smith, ""garage"""');
 	});
 });
+
+describe('picked values', () => {
+	const tape = (q: { v: number; d: 0 | 1 | 2 | 3 }) => C.insert(C.initialState(), q, 16);
+	it('go in as typed entries', () => {
+		const s = tape({ v: 150.5, d: 1 });
+		const last = s.tokens[s.tokens.length - 1];
+		expect(last.kind).toBe('entry');
+		expect(C.equals(s).done).toEqual({ v: 150.5, d: 1 });
+	});
+	it('take a unit like a typed number', () => {
+		// 12 picked, then the feet key: 12'.
+		const s = C.key(tape({ v: 12, d: 0 }), 'ft');
+		expect(C.equals(s).done).toEqual({ v: 144, d: 1 });
+	});
+	it('pass their unit on after + (feet-inches: feet; a fraction: inches)', () => {
+		let s = C.op(tape({ v: 150, d: 1 }), '+', 16);
+		s = C.key(s, '2');
+		expect(C.equals(s).done).toEqual({ v: 174, d: 1 });
+		let t = C.op(tape({ v: 150, d: 1 }), '+', 16);
+		for (const k of ['1', 'frac', '2'] as const) t = C.key(t, k);
+		expect(C.equals(t).done).toEqual({ v: 150.5, d: 1 });
+	});
+	it('an answer passes its unit on too', () => {
+		let s = C.equals(C.key(C.key(C.initialState(), '5'), 'ft'));
+		s = C.key(C.op(s, '+', 16, 'ftin'), '3');
+		expect(C.equals(s).done).toEqual({ v: 96, d: 1 });
+	});
+	it('keep values typing cannot give as fixed values', () => {
+		const s = tape({ v: 10.123456, d: 1 });
+		expect(s.tokens[s.tokens.length - 1].kind).toBe('value');
+	});
+});

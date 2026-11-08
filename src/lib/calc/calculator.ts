@@ -1,7 +1,7 @@
 // The basic calculator's state machine, kept free of UI so it can be
 // tested: keys go in, the expression / live result / tape come out.
 
-import { backspace, canPress, canSetPower, emptyEntry, entryValue, isEmpty, parseText, press, unitOf, withPower, type Entry, type EntryKey } from './entry';
+import { backspace, canPress, canSetPower, emptyEntry, entryFor, entryValue, isEmpty, parseText, press, unitOf, withPower, type Entry, type EntryKey } from './entry';
 import { CalcError, evaluate, openParens, tokensText, tokenText, type Op, type Token } from './expression';
 import { formatAs, defaultFormat, fromUnit, UNITS, type Dim, type LengthFormat, type Quantity, type UnitId } from './units';
 
@@ -134,7 +134,7 @@ function hintFor(o: Op, operand: Token | undefined, fmt?: LengthFormat): UnitId 
 		if (d === 0) return null;
 		if (fmt && fmt !== 'ftin' && UNITS[fmt as UnitId]?.d === d) return fmt as UnitId;
 		if (fmt === 'in' && d === 1) return 'in';
-		return d === 2 ? 'sqft' : d === 3 ? 'cuft' : null;
+		return d === 1 ? 'ft' : d === 2 ? 'sqft' : 'cuft';
 	}
 	return null;
 }
@@ -239,7 +239,14 @@ export function useVar(s: CalcState, name: VarName): CalcState {
 export function insert(s: CalcState, v: Quantity, den: number): CalcState {
 	const base = s.done ? { ...s, tokens: [{ kind: 'entry', entry: emptyEntry() } as Token], done: null } : s;
 	const tokens = [...base.tokens];
-	tokens[tokens.length - 1] = { kind: 'value', value: v, text: valueText(v, den) };
+	const last = tokens[tokens.length - 1];
+	// In as if typed, so it can be edited and given a unit like any number;
+	// a value typing can't give exactly stays a fixed value.
+	const e = entryFor(v);
+	const prev = last?.kind === 'entry' ? last.entry : null;
+	tokens[tokens.length - 1] = e
+		? { kind: 'entry', entry: { ...e, fracIn: prev?.fracIn } }
+		: { kind: 'value', value: v, text: valueText(v, den) };
 	return { ...base, tokens, error: null };
 }
 

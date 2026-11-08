@@ -163,7 +163,50 @@ export function unitOf(e: Entry): UnitId | null {
 	if (e.unit) return e.unit;
 	if (FEET_ONLY.test(e.raw)) return 'ft';
 	if (INCH_ONLY.test(e.raw)) return 'in';
+	// Feet and inches (5' 3"): the next number is feet, a bare fraction
+	// inches (fracIn); inches with a fraction (6 1/2"): inches.
+	if (e.raw.includes("'")) return 'ft';
+	if (e.raw.includes('"')) return 'in';
 	return null;
+}
+
+/** A value as an entry, as if typed (12' 6 1/2", 7.5, 120 sq ft), so the
+ *  unit keys and backspace work on it; null when typing couldn't give it
+ *  exactly (a negative, a length off the 1/64" grid, many decimals). */
+export function entryFor(q: Quantity): Entry | null {
+	const v = q.v;
+	if (!Number.isFinite(v) || v < 0) return null;
+	const dec = (x: number) => {
+		const r = Math.round(x * 1e4) / 1e4;
+		if (Math.abs(r - x) > 1e-9) return null;
+		const t = String(r);
+		return /^[\d.]+$/.test(t) && t.replace(/\D/g, '').length <= MAX_DIGITS ? t : null;
+	};
+	if (q.d === 0) {
+		const t = dec(v);
+		return t === null ? null : { raw: t, unit: null };
+	}
+	if (q.d === 1) {
+		const n64 = Math.round(v * 64);
+		if (Math.abs(n64 - v * 64) > 1e-6) return null;
+		const ft = Math.floor(n64 / (64 * 12));
+		const restIn = n64 - ft * 64 * 12;
+		const inches = Math.floor(restIn / 64);
+		let num = restIn - inches * 64;
+		let den = 64;
+		while (num && num % 2 === 0) {
+			num /= 2;
+			den /= 2;
+		}
+		const fr = num ? `${num}/${den}` : '';
+		let raw = '';
+		if (ft) raw = `${ft}'` + (inches ? `${inches}"` : '') + fr;
+		else if (inches) raw = `${inches}"${fr}`;
+		else raw = fr ? `${fr}"` : `0"`;
+		return raw.replace(/\D/g, '').length <= MAX_DIGITS ? { raw, unit: null } : null;
+	}
+	const t = dec(q.d === 2 ? v / 144 : v / 1728);
+	return t === null ? null : { raw: t, unit: q.d === 2 ? 'sqft' : 'cuft' };
 }
 
 /** Feet, inches, fraction pieces of a raw entry (strings as typed). */
