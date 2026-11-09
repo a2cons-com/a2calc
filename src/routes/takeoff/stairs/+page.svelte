@@ -121,6 +121,32 @@
 		<Field label="Landing depth" bind:value={st.landingDepth} min={12} max={240} note="In the direction of travel" />
 	</div>
 
+	{#if r.flights.length > 1}
+		<div class="section-title">Flights</div>
+		<div class="card table">
+			{#each r.flights as f, i (i)}
+				<div class="tr fl">
+					<span class="what">Flight {i + 1}<small>{f.risers} risers · {f.treads} treads</small></span>
+					<span class="num pair"><small>Rise</small>{ft(f.rise)}</span>
+					<span class="num pair"><small>Run</small>{ft(f.run)}</span>
+				</div>
+				{#if i < r.flights.length - 1}
+					<div class="tr fl landing">
+						<span class="what">Landing {i + 1}<small>Framing top +{ft(f.y1 - st.treadThk)} rough</small></span>
+						<span class="num pair"><small>Height</small>+{ft(f.y1 - Math.max(0, st.finishBottom))}</span>
+						<span class="num pair"><small>Depth</small>{ft(r.flights[i + 1].x0 - f.x1)}</span>
+					</div>
+				{/if}
+			{/each}
+			<div class="tr fl total">
+				<span class="what">Total</span>
+				<span class="num pair"><small>Rise</small>{ft(r.finishedRise)}</span>
+				<span class="num pair"><small>Run</small>{ft(r.run)}</span>
+			</div>
+		</div>
+		<p class="fine tip">Heights are to the finished landing surface, from the finished floor below; run is nosing to nosing, first riser to the landing edge.</p>
+	{/if}
+
 	<div class="section-title">Stringer layout</div>
 	<div class="fields">
 		<div class="seg">
@@ -242,6 +268,27 @@
 		gap: 10px;
 		align-items: baseline;
 		padding: 10px 16px;
+	}
+	.tr.fl {
+		grid-template-columns: 1fr 5.6rem 5.6rem;
+	}
+	.tr.landing {
+		background: var(--surface-2);
+	}
+	.tr.total .what {
+		font-weight: 700;
+	}
+	.pair {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		font-weight: 700;
+	}
+	.pair small {
+		font-family: var(--font-sans, inherit);
+		font-weight: 500;
+		font-size: 0.72rem;
+		color: var(--faint);
 	}
 	.tr.three {
 		grid-template-columns: 1fr auto 2.6rem;

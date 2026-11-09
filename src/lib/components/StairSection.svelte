@@ -19,6 +19,7 @@
 	const nose = $derived(Math.max(0, input.nosing));
 	const fd = $derived(Math.max(1, input.floorDepth));
 	const slab = 6;
+	const multi = $derived(r.flights.length > 1);
 	const top = $derived(rise + ftp);
 
 	// Drawing extents: a floor's worth past each end.
@@ -93,7 +94,7 @@
 	<text x={x + side * fs * 0.55} y={(y0 + y1) / 2} font-size={fs} class="dt" text-anchor="middle" transform="rotate({side * 90} {x + side * fs * 0.55} {(y0 + y1) / 2})">{label}</text>
 {/snippet}
 
-<svg viewBox="{left - off * 3} {Y(top + fs * 3.2)} {right - left + off * 5.4} {top + slab + fs * 7}" role="img" aria-label="Stair section">
+<svg viewBox="{left - off * 3} {Y(top + fs * 3.2)} {right - left + off * 5.4} {top + slab + fs * (multi ? 9 : 7)}" role="img" aria-label="Stair section">
 	<!-- lower floor: slab or subfloor, finish on top -->
 	<rect x={left} y={Y(0)} width={right - left} height={slab} class="rough" stroke-width={sw} />
 	{#if fb > 0}<rect x={left} y={Y(fb)} width={right - left} height={fb} class="finish" stroke-width={sw} />{/if}
@@ -136,7 +137,20 @@
 	<!-- dimensions: finished rise at the left, run below, opening above -->
 	{@render vdim(left - off, Y(fb), Y(top), `${ft(r.finishedRise)} finished`, -1)}
 	{@render vdim(left - off * 2, Y(0), Y(rise), `${ft(rise)} rough`, -1)}
-	{@render hdim(0, r.run, Y(0) + slab + off * 0.9, `${ft(r.run)} run`, true)}
+	{#if multi}
+		{#each r.flights as f, i (i)}
+			{@render hdim(f.x0, f.x1, Y(0) + slab + off * 0.9, ft(f.run), true)}
+			{#if i < r.flights.length - 1}
+				{@render hdim(f.x1, r.flights[i + 1].x0, Y(0) + slab + off * 0.9, ft(r.flights[i + 1].x0 - f.x1), true)}
+			{/if}
+		{/each}
+		{@render hdim(0, r.run, Y(0) + slab + off * 2.1, `${ft(r.run)} total run`, true)}
+	{:else}
+		{@render hdim(0, r.run, Y(0) + slab + off * 0.9, `${ft(r.run)} run`, true)}
+	{/if}
+	{#each r.steps.filter((s) => s.kind === 'landing') as l, i (l.x0)}
+		<text x={(l.x0 + l.x1) / 2} y={Y(l.y) - fs * 0.5} font-size={fs * 0.85} class="lt" text-anchor="middle">Landing {i + 1} · +{ft(l.y - fb)}</text>
+	{/each}
 	{#if r.opening > 0}
 		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, `${ft(r.opening)} opening`)}
 	{/if}
@@ -196,6 +210,11 @@
 		font-family: var(--font-num);
 		font-weight: 600;
 		fill: var(--primary-text);
+	}
+	.lt {
+		font-family: var(--font-num);
+		font-weight: 700;
+		fill: var(--text);
 	}
 	.lbl {
 		font-family: var(--font-num);

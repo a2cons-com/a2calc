@@ -119,6 +119,10 @@ export interface Flight {
 	y1: number;
 	/** What the stringer bears on at the bottom (rough). */
 	seat: number;
+	/** Finished rise and horizontal run of this flight (nosing to
+	 *  nosing: first riser face to the landing or top floor edge). */
+	rise: number;
+	run: number;
 	/** Stringer: rough cut heights from its seat, first and the rest. */
 	firstRise: number;
 	length: number;
@@ -210,7 +214,7 @@ export function stairs(s: StairInput): StairResult {
 		const firstRise = y0 + R - tt - seat;
 		const rough = k * R;
 		const length = Math.hypot(k * T, rough);
-		flights.push({ risers: k, treads: k - 1, x0, x1: x, y0, y1: y, seat, firstRise, length, stock: stock(length) });
+		flights.push({ risers: k, treads: k - 1, x0, x1: x, y0, y1: y, rise: y - y0, run: x - x0, seat, firstRise, length, stock: stock(length) });
 		if (!last) x += LD;
 	});
 	const run = steps.find((st) => st.kind === 'top')!.x0;

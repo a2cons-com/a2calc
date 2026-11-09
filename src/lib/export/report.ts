@@ -182,7 +182,24 @@ function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindNa
 	return {
 		headline: { label: 'Risers', value: String(r.risers), unit: `at ${ft(r.riser)}` },
 		summary,
-		tables: [{ title: 'Cut list', cols: ['Item', 'Size', 'Qty'], numFrom: 2, rows: stairCuts(s, r, ft).map((c) => [c.what, c.size, String(c.count)]) }],
+		tables: [
+			...(r.flights.length > 1
+				? [
+						{
+							title: 'Flights',
+							note: 'heights from the finished floor below',
+							cols: ['Part', 'Steps', 'Rise / height', 'Run / depth'],
+							numFrom: 2,
+							rows: r.flights.flatMap((f, i) => {
+								const row = [`Flight ${i + 1}`, `${f.risers} risers, ${f.treads} treads`, ft(f.rise), ft(f.run)];
+								const next = r.flights[i + 1];
+								return next ? [row, [`Landing ${i + 1}`, '', `+${ft(f.y1 - s.finishBottom)}`, ft(next.x0 - f.x1)]] : [row];
+							})
+						}
+					]
+				: []),
+			{ title: 'Cut list', cols: ['Item', 'Size', 'Qty'], numFrom: 2, rows: stairCuts(s, r, ft).map((c) => [c.what, c.size, String(c.count)]) }
+		],
 		warnings: r.warnings,
 		notes: [codeNotes(r.limits, (v) => formatFtIn(v, den, v < 60)).join(' ')]
 	};

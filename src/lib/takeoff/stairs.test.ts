@@ -38,6 +38,9 @@ describe('stairs', () => {
 		expect(r.flights.reduce((s, f) => s + f.risers, 0)).toBe(r.risers);
 		expect(r.run).toBeCloseTo(r.treads * 10.5 + 36, 6);
 		expect(r.flights[1].firstRise).toBeCloseTo(r.riser, 6);
+		expect(r.flights.reduce((s, f) => s + f.rise, 0)).toBeCloseTo(r.finishedRise, 6);
+		expect(r.flights.reduce((s, f) => s + f.run, 0) + 36).toBeCloseTo(r.run, 6);
+		expect(r.flights[0].run).toBeCloseTo(r.flights[0].treads * 10.5, 6);
 	});
 	it('warns on a riser over the limit', () => {
 		const r = stairs({ ...base, risers: 12 });
