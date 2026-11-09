@@ -121,8 +121,8 @@
 		</div>
 		<Field label="Rough rise" bind:value={st.rise} bare="ft" min={6} max={480} note="Lower slab or subfloor to upper subfloor" />
 		<div class="two">
-			<Field label="Finish, bottom" bind:value={st.finishBottom} min={0} max={6} note="Tile, wood, carpet" />
-			<Field label="Finish, top" bind:value={st.finishTop} min={0} max={6} note="Still to go on" />
+			<Field label="Floor finish, bottom" bind:value={st.finishBottom} min={0} max={6} note="All of it: tile and bed, wood, underlayment" />
+			<Field label="Floor finish, top" bind:value={st.finishTop} min={0} max={6} note="All of it, still to go on" />
 		</div>
 		<Field label="Upper floor depth" bind:value={st.floorDepth} min={1} max={48} note="Joists and subfloor, for headroom" />
 	</div>
@@ -144,7 +144,7 @@
 			<Field label="Width" bind:value={st.width} bare="in" min={12} max={240} />
 		</div>
 		<div class="two">
-			<Field label="Tread stock" bind:value={st.treadThk} min={0} max={4} note="Thickness" />
+			<Field label="Tread stock" bind:value={st.treadThk} min={0} max={4} note="Stair tread thickness" />
 			<Field label="Riser stock" bind:value={st.riserThk} min={0} max={2} note="0 for open" />
 		</div>
 	</div>
