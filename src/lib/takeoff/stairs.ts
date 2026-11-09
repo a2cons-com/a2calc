@@ -29,9 +29,32 @@ export interface StairInput {
 	/** Intermediate landings, or null for only those the code needs. */
 	landings: number | null;
 	landingDepth: number;
+	/** Landings placed by hand: where each one is (risers below it) and
+	 *  how deep. Null (or missing) to space them evenly at landingDepth. */
+	spots?: LandingSpot[] | null;
 	/** Upper floor structure: joists plus subfloor. */
 	floorDepth: number;
 	stringer: StringerSize;
+}
+
+/** A landing placed by hand: `at` risers below it, `depth` along the run. */
+export interface LandingSpot {
+	at: number;
+	depth: number;
+}
+
+/** Hand-placed landings made valid for `n` risers: in order, each at
+ *  least a riser above the last, none at the floors. */
+function normSpots(spots: LandingSpot[] | null | undefined, n: number): LandingSpot[] | null {
+	if (!spots?.length || n < 2) return null;
+	const list = [...spots].filter((p) => Number.isFinite(p.at)).sort((a, b) => a.at - b.at).slice(0, n - 1);
+	if (!list.length) return null;
+	let prev = 0;
+	return list.map((p, i) => {
+		const at = Math.min(n - (list.length - i), Math.max(prev + 1, Math.round(p.at)));
+		prev = at;
+		return { at, depth: Number.isFinite(p.depth) ? Math.max(12, p.depth) : 36 };
+	});
 }
 
 export type StringerSize = '2x12' | '2x10';
@@ -139,6 +162,11 @@ export interface StairResult {
 	flights: Flight[];
 	steps: Step[];
 	landings: number;
+	/** Each landing: risers below it, depth, finished height above the
+	 *  finished floor, framing top above the rough floor, where it runs. */
+	spots: (LandingSpot & { height: number; framing: number; x0: number; x1: number })[];
+	/** Landings placed by hand. */
+	custom: boolean;
 	/** Upper floor framing underside (rough). */
 	ceiling: number;
 	/** Floor opening needed for headroom, back from the top riser. */
@@ -185,9 +213,13 @@ export function stairs(s: StairInput): StairResult {
 
 	// Flights: at least enough that none climbs more than the code allows.
 	const needFlights = Math.min(n, Math.max(1, Math.ceil(finishedRise / L.maxFlightRise - EPS)));
-	const flightsN = Math.min(n, Math.max(1, s.landings === null ? needFlights : Math.round(s.landings) + 1));
+	const custom = normSpots(s.spots, n);
+	const flightsN = custom ? custom.length + 1 : Math.min(n, Math.max(1, s.landings === null ? needFlights : Math.round(s.landings) + 1));
 	const LD = pos(s.landingDepth, 12);
-	const per = Array.from({ length: flightsN }, (_, i) => Math.floor(n / flightsN) + (i < n % flightsN ? 1 : 0));
+	const per = custom
+		? custom.map((p, i) => p.at - (i ? custom[i - 1].at : 0)).concat(n - custom[custom.length - 1].at)
+		: Array.from({ length: flightsN }, (_, i) => Math.floor(n / flightsN) + (i < n % flightsN ? 1 : 0));
+	const depthOf = (i: number) => (custom ? custom[i].depth : LD);
 
 	const steps: Step[] = [];
 	const flights: Flight[] = [];
@@ -203,7 +235,7 @@ export function stairs(s: StairInput): StairResult {
 				steps.push({ kind: 'tread', x0: x, x1: x + T, y, flight: f });
 				x += T;
 			} else if (!last) {
-				steps.push({ kind: 'landing', x0: x, x1: x + LD, y, flight: f });
+				steps.push({ kind: 'landing', x0: x, x1: x + depthOf(f), y, flight: f });
 			} else {
 				steps.push({ kind: 'top', x0: x, x1: x + Math.max(36, LD), y, flight: f });
 			}
@@ -215,7 +247,7 @@ export function stairs(s: StairInput): StairResult {
 		const rough = k * R;
 		const length = Math.hypot(k * T, rough);
 		flights.push({ risers: k, treads: k - 1, x0, x1: x, y0, y1: y, rise: y - y0, run: x - x0, seat, firstRise, length, stock: stock(length) });
-		if (!last) x += LD;
+		if (!last) x += depthOf(f);
 	});
 	const run = steps.find((st) => st.kind === 'top')!.x0;
 
@@ -260,7 +292,7 @@ export function stairs(s: StairInput): StairResult {
 	const tallest = Math.max(...flights.map((f) => f.risers * R));
 	if (tallest > L.maxFlightRise + EPS) warnings.push(`A flight climbs ${f16(tallest)}: over ${f16(L.maxFlightRise)} needs a landing.`);
 	const needLanding = L.landingByWidth ? Math.min(L.minLanding, W) : L.minLanding;
-	if (flightsN > 1 && LD < needLanding - EPS) warnings.push(`Landings must be at least ${f16(needLanding)} deep.`);
+	if (flightsN > 1 && Array.from({ length: flightsN - 1 }, (_, i) => depthOf(i)).some((d) => d < needLanding - EPS)) warnings.push(`Landings must be at least ${f16(needLanding)} deep.`);
 	if (throat < 3.5) warnings.push(`Only ${f16(throat)} of stringer left under the notches: use a deeper stringer.`);
 	else if (throat < 5) hints.push(`${f16(throat)} of stringer under the notches; 5″ or more is better.`);
 	if (comfort < 24 - EPS || comfort > 25.5 + EPS) hints.push(`2 risers + 1 tread = ${f16(comfort)}; 24″ to 25″ walks easiest.`);
@@ -276,6 +308,11 @@ export function stairs(s: StairInput): StairResult {
 		flights,
 		steps,
 		landings: flightsN - 1,
+		spots: flights.slice(0, -1).map((f, i) => {
+			const at = per.slice(0, i + 1).reduce((a, b) => a + b, 0);
+			return { at, depth: depthOf(i), height: f.y1 - fb, framing: f.y1 - tt, x0: f.x1, x1: f.x1 + depthOf(i) };
+		}),
+		custom: !!custom,
 		ceiling,
 		opening,
 		openingAt,
@@ -306,7 +343,9 @@ export function stairCuts(s: StairInput, r: StairResult, ft: (v: number) => stri
 	for (const [len, n] of byStock) out.push({ what: 'Stringers', size: `${s.stringer} × ${Math.round(len / 12)}′`, count: n });
 	if (r.treads) out.push({ what: 'Treads', size: `${ft(s.width)} × ${ft(r.treadDepth)} × ${ft(s.treadThk)}`, count: r.treads });
 	if (s.riserThk > 0) out.push({ what: 'Risers', size: `${ft(s.width)} × ${ft(r.riserBoard)} × ${ft(s.riserThk)}`, count: r.risers });
-	if (r.landings) out.push({ what: 'Landing platforms', size: `${ft(s.landingDepth)} × ${ft(s.width)}`, count: r.landings });
+	const byDepth = new Map<number, number>();
+	for (const p of r.spots) byDepth.set(p.depth, (byDepth.get(p.depth) ?? 0) + 1);
+	for (const [d, n] of byDepth) out.push({ what: 'Landing platforms', size: `${ft(d)} × ${ft(s.width)}`, count: n });
 	return out;
 }
 

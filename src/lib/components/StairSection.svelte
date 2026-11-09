@@ -5,12 +5,11 @@
 	// finished rise, riser and tread, total run, opening.
 	import { formatFtIn } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
-	import { STRINGER_DEPTH, type StairInput, type StairResult } from '$lib/takeoff/stairs';
+	import type { StairInput, StairResult } from '$lib/takeoff/stairs';
 
-	let { input, r }: { input: StairInput; r: StairResult } = $props();
+	let { input, r, selected = -1, onselect }: { input: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void } = $props();
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
 
-	const D = $derived(STRINGER_DEPTH[input.stringer]);
 	const fb = $derived(Math.max(0, input.finishBottom));
 	const ftp = $derived(Math.max(0, input.finishTop));
 	const rise = $derived(Math.max(1, input.rise));
@@ -108,12 +107,14 @@
 	{#if ftp > 0}<rect x={r.run} y={Y(top)} width={right - r.run} height={ftp} class="finish" stroke-width={sw} />{/if}
 
 	<!-- landings: platform framing on posts -->
-	{#each r.steps.filter((s) => s.kind === 'landing') as l (l.x0)}
-		<rect x={l.x0} y={Y(l.y - tt)} width={l.x1 - l.x0} height={Math.min(D, l.y - tt - fb)} class="frame" stroke-width={sw} />
-		<rect x={l.x0 - nose} y={Y(l.y)} width={l.x1 - l.x0 + nose} height={tt} class="tread" stroke-width={sw} />
-		{#each [l.x0 + 1.75, l.x1 - 1.75] as px (px)}
-			<rect x={px - 1.75} y={Y(l.y - tt - D)} width="3.5" height={Math.max(0, l.y - tt - D - fb)} class="frame" stroke-width={sw} />
-		{/each}
+	{#each r.spots as l, i (i)}
+		{@const ly = l.height + fb}
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<g class="land" class:sel={selected === i} onclick={() => onselect?.(i)}>
+			<rect x={l.x0} y={Y(ly)} width={l.x1 - l.x0} height={ly - fb} class="hit" />
+			<!-- the landing surface only: how it's held up is the framer's call -->
+			<rect x={l.x0 - nose} y={Y(ly)} width={l.x1 - l.x0 + nose} height={tt} class="tread" stroke-width={sw} />
+		</g>
 	{/each}
 
 	<!-- stringers -->
@@ -148,8 +149,11 @@
 	{:else}
 		{@render hdim(0, r.run, Y(0) + slab + off * 0.9, `${ft(r.run)} run`, true)}
 	{/if}
-	{#each r.steps.filter((s) => s.kind === 'landing') as l, i (l.x0)}
-		<text x={(l.x0 + l.x1) / 2} y={Y(l.y) - fs * 0.5} font-size={fs * 0.85} class="lt" text-anchor="middle">Landing {i + 1} · +{ft(l.y - fb)}</text>
+	<!-- each landing's height, finished floor to finished landing: critical -->
+	{#each r.spots as l, i (i)}
+		{@const cx = (l.x0 + l.x1) / 2}
+		<text x={cx} y={Y(l.height + fb) - fs * 0.5} font-size={fs * 0.85} class="lt" class:selt={selected === i} text-anchor="middle">Landing {i + 1}</text>
+		{@render vdim(cx, Y(fb), Y(l.height + fb), `+${ft(l.height)}`, -1)}
 	{/each}
 	{#if r.opening > 0}
 		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, `${ft(r.opening)} opening`)}
@@ -178,10 +182,6 @@
 	}
 	.stringer {
 		fill: var(--wood);
-		stroke: var(--wood-edge);
-	}
-	.frame {
-		fill: var(--wood-king);
 		stroke: var(--wood-edge);
 	}
 	.tread {
@@ -220,5 +220,22 @@
 		font-family: var(--font-num);
 		font-weight: 600;
 		fill: var(--muted);
+	}
+	.land {
+		cursor: pointer;
+	}
+	.hit {
+		fill: transparent;
+	}
+	.land.sel .tread {
+		stroke: var(--primary);
+		stroke-width: 1.2;
+		vector-effect: non-scaling-stroke;
+	}
+	.land.sel .hit {
+		fill: color-mix(in srgb, var(--primary) 12%, transparent);
+	}
+	.selt {
+		fill: var(--primary-text);
 	}
 </style>

@@ -5,7 +5,8 @@
 	import { prefs } from '$lib/stores/app.svelte';
 	import type { StairInput, StairResult } from '$lib/takeoff/stairs';
 
-	let { input, r }: { input: StairInput; r: StairResult } = $props();
+	let { input, r, selected = -1, onselect }: { input: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void } = $props();
+	const spotAt = (x0: number) => r.spots.findIndex((p) => Math.abs(p.x0 - x0) < 0.01);
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
 	const W = $derived(Math.max(12, input.width));
 	const big = $derived(Math.max(r.run, W, 1));
@@ -24,8 +25,10 @@
 		{#if s.kind === 'tread'}
 			<rect x={s.x0} y="0" width={s.x1 - s.x0} height={W} class="tread" stroke-width={sw} />
 		{:else if s.kind === 'landing'}
-			<rect x={s.x0} y="0" width={s.x1 - s.x0} height={W} class="landing" stroke-width={sw} />
-			<text x={(s.x0 + s.x1) / 2} y={mid + fs * 0.35} font-size={fs * 0.8} class="lbl" text-anchor="middle">LANDING</text>
+			{@const li = spotAt(s.x0)}
+			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+			<rect x={s.x0} y="0" width={s.x1 - s.x0} height={W} class="landing" class:sel={selected === li} stroke-width={sw} onclick={() => onselect?.(li)} />
+			<text x={(s.x0 + s.x1) / 2} y={mid + fs * 0.35} font-size={fs * 0.8} class="lbl" text-anchor="middle" pointer-events="none">LANDING {spotAt(s.x0) + 1}</text>
 		{:else}
 			<rect x={s.x0} y="0" width="36" height={W} class="floor" stroke-width={sw} />
 		{/if}
@@ -66,6 +69,12 @@
 	.landing {
 		fill: var(--wood-king);
 		stroke: var(--wood-edge);
+		cursor: pointer;
+	}
+	.landing.sel {
+		stroke: var(--primary);
+		stroke-width: 1.5;
+		vector-effect: non-scaling-stroke;
 	}
 	.floor {
 		fill: var(--concrete-top);

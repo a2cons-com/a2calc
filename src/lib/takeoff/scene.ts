@@ -10,7 +10,7 @@ import type { Opening, Role, RunFraming } from './framing';
 import { COURSE_IN, UNIT_IN, wallsGrout, type LintelKind } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
-import { STRINGER_DEPTH, type StairInput, type StairResult } from './stairs';
+import type { StairInput, StairResult } from './stairs';
 
 export interface Solid {
 	/** Center. */
@@ -177,7 +177,7 @@ export function concreteScene(pieces: Piece[], selected: number): Scene {
 }
 
 /** A stair along x (width along z): floors, the upper floor seen through,
- *  stringers, treads and risers, landings on posts. */
+ *  stringers, treads and risers, landings (their surface only). */
 export function stairScene(input: StairInput, r: StairResult): Scene {
 	const solids: Solid[] = [];
 	const mats: Record<string, Mat> = {
@@ -185,8 +185,7 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 		floor: { color: '--concrete-top', opacity: 0.35 },
 		stringer: { color: '--wood', edges: true },
 		tread: { color: '--wood-header', edges: true },
-		riser: { color: '--plate', edges: true },
-		frame: { color: '--wood-king', edges: true }
+		riser: { color: '--plate', edges: true }
 	};
 	const W = Math.max(12, input.width);
 	const T = Math.max(1, input.tread);
@@ -195,7 +194,6 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 	const nose = Math.max(0, input.nosing);
 	const fd = Math.max(1, input.floorDepth);
 	const rise = Math.max(1, input.rise);
-	const D = STRINGER_DEPTH[input.stringer];
 	const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, mat: string): Solid => ({
 		c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2],
 		s: [Math.max(0.1, x1 - x0), Math.max(0.1, y1 - y0), Math.max(0.1, z1 - z0)],
@@ -235,9 +233,8 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 	for (const s of r.steps) {
 		if (s.kind === 'tread') solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
 		if (s.kind === 'landing') {
+			// Just the landing surface: how it's held up is the framer's call.
 			solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
-			solids.push(box(s.x0, s.x1, s.y - tt - D, s.y - tt, 0, W, 'frame'));
-			for (const px of [s.x0 + 1.75, s.x1 - 1.75]) for (const pz of [1.75, W - 1.75]) solids.push(box(px - 1.75, px + 1.75, 0, s.y - tt - D, pz - 1.75, pz + 1.75, 'frame'));
 		}
 		const top = s.y - (s.kind === 'top' ? Math.max(0, input.finishTop) : tt);
 		solids.push(box(s.x0 - rt, s.x0, top - r.riserBoard, top, 0, W, 'riser'));

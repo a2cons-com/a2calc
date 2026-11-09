@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { stairs, type StairInput } from './stairs';
+import { stairCuts, stairs, type StairInput } from './stairs';
 
 const base: StairInput = {
 	code: 'irc', rise: 108, finishBottom: 0.75, finishTop: 0.75, risers: null, tread: 10.5, nosing: 1,
-	treadThk: 1, riserThk: 0.75, width: 36, landings: null, landingDepth: 36, floorDepth: 12.625, stringer: '2x12'
+	treadThk: 1, riserThk: 0.75, width: 36, landings: null, landingDepth: 36, spots: null, floorDepth: 12.625, stringer: '2x12'
 };
 
 describe('stairs', () => {
@@ -50,5 +50,19 @@ describe('stairs', () => {
 		const r = stairs({ ...base, code: 'ibc', tread: 11 });
 		expect(r.riser).toBeLessThanOrEqual(7);
 		expect(r.warnings.some((w) => w.includes('width'))).toBe(true);
+	});
+	it('places landings by hand, each with its own depth', () => {
+		const r = stairs({ ...base, rise: 170, spots: [{ at: 4, depth: 48 }, { at: 18, depth: 36 }] });
+		expect(r.custom).toBe(true);
+		expect(r.landings).toBe(2);
+		expect(r.flights.map((f) => f.risers)).toEqual([4, 14, r.risers - 18]);
+		expect(r.spots[0].height).toBeCloseTo(4 * r.riser, 6);
+		expect(r.spots[0].framing).toBeCloseTo(0.75 + 4 * r.riser - 1, 6);
+		expect(r.run).toBeCloseTo(r.treads * 10.5 + 48 + 36, 6);
+		expect(stairCuts({ ...base, rise: 170, spots: [{ at: 4, depth: 48 }, { at: 18, depth: 36 }] }, r, String).filter((c) => c.what === 'Landing platforms').length).toBe(2);
+	});
+	it('keeps hand-placed landings in order and off the floors', () => {
+		const r = stairs({ ...base, spots: [{ at: 40, depth: 36 }, { at: 0, depth: 36 }] });
+		expect(r.spots.map((p) => p.at)).toEqual([1, r.risers - 1]);
 	});
 });

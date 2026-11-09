@@ -79,6 +79,7 @@ export const STAIRS_DEFAULT: StairInput = {
 	width: 36,
 	landings: null,
 	landingDepth: 36,
+	spots: null,
 	floorDepth: 12.625,
 	stringer: '2x12'
 };

@@ -3,18 +3,18 @@
      changed and what to check. scripts/testflight.sh sends it, archives it
      to docs/testflight-history.md and resets this file. -->
 
-New Stairs takeoff: risers, treads, landings and the stringer layout between two floors.
+Stairs: a dimensioned stringer drawing, and landings you place yourself.
 
 What changed
 
-- Stairs in the menu and in Takeoffs: rough rise and finish floors in, riser count and height, treads, total run and angle out
-- Risers and landings follow IRC or IBC limits, or set them yourself
-- Stringer layout with the first rise and top drop cut for the finish floors, and a cut list
-- With landings: each flight's rise and run, and each landing's height and depth
-- Floor opening for headroom, section, plan and 3D views, warnings and code reminders
-- Stairs save to projects and export to PDF and CSV
+- Stringer drawing under Stringer layout, for each flight: first rise, a rise and tread cut, the top, notch depth, what's left under the notches, and the length with the board to buy
+- Tap a landing in the section or plan to pick it, then move it a riser at a time or type its height; each landing has its own depth
+- Each landing's height is dimensioned in the section, finished floor to finished landing
+- Landings are drawn as their surface only; posts and framing are left to the framer
+- The PDF includes the stringer drawings
 
 What to check
 
-- Enter a real stair and compare the riser height and run with your own layout
-- Add a landing and check each flight's rise and run
+- Look at the stringer drawing for each flight and compare it with a stringer you laid out
+- Move a landing up and down, change its depth, and check the flight rises and runs
+- Check the 3D view with two landings

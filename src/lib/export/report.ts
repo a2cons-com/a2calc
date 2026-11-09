@@ -173,7 +173,7 @@ function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindNa
 		['Treads', `${r.treads} at ${ft(s.tread)} run`],
 		['Finished rise', `${ft(r.finishedRise)} (rough ${ft(s.rise)})`],
 		['Total run', ft(r.run)],
-		['Landings', r.landings ? `${r.landings} at ${ft(s.landingDepth)}` : 'None'],
+		['Landings', r.landings ? r.spots.map((p) => `+${ft(p.height)}`).join(', ') : 'None'],
 		['Floor opening', r.opening > 0 ? `${ft(r.opening)} long` : 'None needed'],
 		['Stringer, first rise', ft(r.flights[0]?.firstRise ?? 0)],
 		['Stringer, top drop', `${ft(r.topDrop)} below the upper subfloor`],

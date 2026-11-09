@@ -11,6 +11,7 @@
 	import Zoom from '$lib/components/Zoom.svelte';
 	import StairSection from '$lib/components/StairSection.svelte';
 	import StairPlan from '$lib/components/StairPlan.svelte';
+	import StairStringer from '$lib/components/StairStringer.svelte';
 
 	const r = $derived(stairs(st));
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
@@ -18,6 +19,9 @@
 	/** Code figures read in inches up to 5′ (34″, not 2′ 10″). */
 	const notes = $derived(codeNotes(r.limits, (v) => formatFtIn(v, prefs.precision, v < 60)));
 
+	/** Which flight's stringer is drawn. */
+	let sf = $state(0);
+	const sfi = $derived(Math.min(sf, r.flights.length - 1));
 	let view = $state<'section' | 'plan' | '3d'>('section');
 	const VIEWS: ['section' | 'plan' | '3d', string][] = [
 		['section', 'Section'],
@@ -31,7 +35,45 @@
 		st.risers = Math.max(1, Math.min(60, r.risers + d));
 	}
 	function landings(d: number) {
-		st.landings = Math.max(0, Math.min(r.risers - 1, r.landings + d));
+		if (!r.custom) {
+			st.landings = Math.max(0, Math.min(r.risers - 1, r.landings + d));
+			return;
+		}
+		const list = spots();
+		if (d < 0 && list.length) {
+			list.splice(Math.min(selL, list.length - 1), 1);
+		} else if (d > 0 && list.length < r.risers - 1) {
+			// The new one goes halfway up the tallest flight.
+			let best = 0;
+			r.flights.forEach((f, i) => f.risers > r.flights[best].risers && (best = i));
+			const below = best ? list[best - 1].at : 0;
+			list.splice(best, 0, { at: below + Math.max(1, Math.floor(r.flights[best].risers / 2)), depth: st.landingDepth });
+			selL = best;
+		}
+		st.spots = list.length ? list : null;
+		st.landings = list.length;
+	}
+
+	/** Landings: tap one in the section or plan, then move it a riser at a
+	 *  time (or type its height) and set its own depth. Editing one fixes
+	 *  them all where they are now. */
+	let selL = $state(0);
+	const sl = $derived(Math.min(selL, Math.max(0, r.landings - 1)));
+	const spots = () => r.spots.map((p) => ({ at: p.at, depth: p.depth }));
+	function setSpot(i: number, patch: Partial<{ at: number; depth: number }>) {
+		const list = spots();
+		if (!list[i]) return;
+		list[i] = { ...list[i], ...patch };
+		const lo = i ? list[i - 1].at + 1 : 1;
+		const hi = i < list.length - 1 ? list[i + 1].at - 1 : r.risers - 1;
+		list[i].at = Math.max(lo, Math.min(hi, Math.round(list[i].at)));
+		st.spots = list;
+		st.landings = list.length;
+		selL = i;
+	}
+	function autoLandings() {
+		st.spots = null;
+		st.landings = null;
 	}
 </script>
 
@@ -45,7 +87,7 @@
 		<span>Treads</span><span>{r.treads} at {ft(st.tread)}</span>
 		<span>Finished rise</span><span>{ft(r.finishedRise)}</span>
 		<span>Total run</span><span>{ft(r.run)}</span>
-		{#if r.landings}<span>Landings</span><span>{r.landings} at {ft(st.landingDepth)}</span>{/if}
+		{#if r.landings}<span>Landings</span><span>{r.spots.map((p) => `+${ft(p.height)}`).join(', ')}</span>{/if}
 		<span>Floor opening</span><span>{r.opening > 0 ? `${ft(r.opening)} long` : 'none needed'}</span>
 		<span>Angle</span><span>{formatNumber(r.angle, 1)}°</span>
 	</ResultCard>
@@ -57,10 +99,10 @@
 	<ViewToggle title="Drawing" bind:view views={VIEWS} />
 	<div class="card drawing">
 		{#if view === 'section'}
-			<Zoom><StairSection input={st} {r} /></Zoom>
+			<Zoom><StairSection input={st} {r} selected={r.landings ? sl : -1} onselect={(i) => (selL = i)} /></Zoom>
 			<p class="fine hint">Cut down the middle. Dashed: the nosing line, and the headroom above it. Pinch to zoom.</p>
 		{:else if view === 'plan'}
-			<Zoom><StairPlan input={st} {r} /></Zoom>
+			<Zoom><StairPlan input={st} {r} selected={r.landings ? sl : -1} onselect={(i) => (selL = i)} /></Zoom>
 			<p class="fine hint">From above. Dashed: the opening in the upper floor.</p>
 		{:else}
 			{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
@@ -110,15 +152,42 @@
 	<div class="section-title">Landings</div>
 	<div class="fields">
 		<div class="row">
-			<span class="label">Landings<small>{st.landings === null ? 'Only where the code needs one' : 'Set by hand'}</small></span>
+			<span class="label">Landings<small>{r.custom ? 'Placed by hand' : st.landings === null ? 'Only where the code needs one' : 'Spaced evenly'}</small></span>
 			<div class="stepper">
-				<button class="pill" class:on={st.landings === null} onclick={() => (st.landings = null)}>Auto</button>
+				<button class="pill" class:on={st.landings === null && !r.custom} onclick={autoLandings}>Auto</button>
 				<button class="icon-btn" aria-label="One landing fewer" onclick={() => landings(-1)}>−</button>
 				<span class="num count">{r.landings}</span>
 				<button class="icon-btn" aria-label="One landing more" onclick={() => landings(1)}>+</button>
 			</div>
 		</div>
-		<Field label="Landing depth" bind:value={st.landingDepth} min={12} max={240} note="In the direction of travel" />
+		{#if !r.custom}
+			<Field label="Landing depth" bind:value={st.landingDepth} min={12} max={240} note="In the direction of travel" />
+		{/if}
+		{#if r.landings}
+			{#if r.landings > 1}
+				<div class="seg">
+					{#each r.spots as _, i (i)}
+						<button class:on={sl === i} onclick={() => (selL = i)}>Landing {i + 1}</button>
+					{/each}
+				</div>
+			{/if}
+			{@const p = r.spots[sl]}
+			<div class="card spot">
+				<div class="row">
+					<span class="label">Landing {sl + 1}<small>On riser {p.at} of {r.risers} · tap a landing in the drawing to pick it</small></span>
+					<div class="stepper">
+						<button class="icon-btn" aria-label="Move down a riser" onclick={() => setSpot(sl, { at: p.at - 1 })}>−</button>
+						<span class="num count">{p.at}</span>
+						<button class="icon-btn" aria-label="Move up a riser" onclick={() => setSpot(sl, { at: p.at + 1 })}>+</button>
+					</div>
+				</div>
+				<div class="two">
+					<Field label="Height" value={p.height} bare="ft" min={1} max={r.finishedRise} note="Finished, snaps to a riser" onchange={(v) => setSpot(sl, { at: v / r.riser })} />
+					<Field label="Depth" value={p.depth} min={12} max={240} note="Along the run" onchange={(v) => setSpot(sl, { depth: v })} />
+				</div>
+				<p class="fine">Framing top +{ft(p.framing)} above the rough floor; flight below {r.flights[sl].risers} risers, above {r.flights[sl + 1].risers}.</p>
+			</div>
+		{/if}
 	</div>
 
 	{#if r.flights.length > 1}
@@ -133,8 +202,8 @@
 				{#if i < r.flights.length - 1}
 					<div class="tr fl landing">
 						<span class="what">Landing {i + 1}<small>Framing top +{ft(f.y1 - st.treadThk)} rough</small></span>
-						<span class="num pair"><small>Height</small>+{ft(f.y1 - Math.max(0, st.finishBottom))}</span>
-						<span class="num pair"><small>Depth</small>{ft(r.flights[i + 1].x0 - f.x1)}</span>
+						<span class="num pair"><small>Height</small>+{ft(r.spots[i].height)}</span>
+						<span class="num pair"><small>Depth</small>{ft(r.spots[i].depth)}</span>
 					</div>
 				{/if}
 			{/each}
@@ -154,6 +223,16 @@
 				<button class:on={st.stringer === sz} onclick={() => (st.stringer = sz)}>{sz}</button>
 			{/each}
 		</div>
+		{#if r.flights.length > 1}
+			<div class="seg">
+				{#each r.flights as _, i (i)}
+					<button class:on={sfi === i} onclick={() => (sf = i)}>Flight {i + 1}</button>
+				{/each}
+			</div>
+		{/if}
+	</div>
+	<div class="card drawing stringer">
+		<Zoom><StairStringer input={st} {r} flight={sfi} /></Zoom>
 	</div>
 	<div class="card table">
 		<div class="tr"><span class="what">First rise<small>Bottom, cut short for the tread and finish</small></span><span class="num val">{ft(r.flights[0]?.firstRise ?? 0)}</span></div>
@@ -193,6 +272,15 @@
 </div>
 
 <style>
+	.spot {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 10px;
+	}
+	.spot .fine {
+		margin: 0;
+	}
 	.fields {
 		display: flex;
 		flex-direction: column;
