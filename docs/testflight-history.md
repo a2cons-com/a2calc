@@ -357,3 +357,19 @@ What to check
 - Change the finish floors and watch the first rise and the top drop on the stringer change
 - Make the rise tall enough to need a landing, then try the section, plan and 3D views
 - Save it to a project and export the PDF
+
+## 0.2.10 (125), 2026-11-08
+
+Stairs with landings now show the rise and run of every flight and the height of every landing.
+
+What changed
+
+- A Flights list under the drawing when the stair has a landing: each flight's risers, treads, rise and run, each landing's height and depth, and the totals
+- Landing heights are to the finished landing surface from the finished floor below; the framing top above the rough floor is shown too
+- The section dimensions each flight's run and each landing's depth above the total run, and labels each landing's height
+- The PDF and CSV exports include the Flights table
+
+What to check
+
+- Make the rise tall enough for a landing (or add one with plus) and check each flight's rise and run against a stair you built
+- Export the PDF and look at the Flights table
