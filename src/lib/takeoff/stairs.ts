@@ -64,9 +64,13 @@ export interface LandingSpot {
 	at: number;
 	depth: number;
 	turn?: Turn;
-	/** Turns: landing in front of the next flight's first riser, in its
-	 *  direction of travel (null: the least the code allows). */
-	before?: number | null;
+	/** L turns: the space between the last riser below and the flight
+	 *  above (null: what the code asks for, mostly none). */
+	past?: number | null;
+	/** L turns: the space between the side of the flight below and the
+	 *  first riser above. U turns: how far that riser sits back from the
+	 *  last one below (0: they line up). Null: as for `past`, or 0. */
+	next?: number | null;
 	/** Width of the flight above, if it changes (null: the same). */
 	width?: number | null;
 	/** U turns: space between the two flights (a well, or a wall). */
@@ -179,7 +183,7 @@ function normSpots(spots: LandingSpot[] | null | undefined, n: number): LandingS
 		prev = at;
 		const turn = TURNS.some(([t]) => t === p.turn) ? p.turn : 'straight';
 		const notch = p.notch && Number.isFinite(p.notch.along) && Number.isFinite(p.notch.across) ? { corner: p.notch.corner, along: Math.max(1, p.notch.along), across: Math.max(1, p.notch.across) } : null;
-		return { at, depth: Number.isFinite(p.depth) ? Math.max(12, p.depth) : 36, turn, before: len(p.before, 12), width: len(p.width, 12), gap: len(p.gap, 0), notch };
+		return { at, depth: Number.isFinite(p.depth) ? Math.max(12, p.depth) : 36, turn, past: len(p.past, 0), next: len(p.next, -240), width: len(p.width, 12), gap: len(p.gap, 0), notch };
 	});
 }
 
@@ -289,9 +293,12 @@ export interface Landing extends LandingSpot {
 	turn: Turn;
 	/** As entered (to edit from). */
 	src: LandingSpot;
-	/** Depth past the arriving riser, and in front of the next one. */
+	/** Depth past the arriving riser, and in front of the next one (the
+	 *  landing's size in each direction of travel); the spaces as figured. */
 	depth: number;
 	before: number;
+	past: number;
+	next: number;
 	gap: number;
 	/** Widths of the flights below and above. */
 	below: number;
@@ -407,8 +414,11 @@ export function stairs(s: StairInput): StairResult {
 		const src = last ? null : spotIn(f);
 		const turn: Turn = src?.turn ?? 'straight';
 		const above = src?.width ?? w;
-		// Depth past the riser: an L must hold the flight above across it.
-		const A = src ? (turn === 'left' || turn === 'right' ? Math.max(src.depth, above) : src.depth) : 0;
+		// Depth past the riser: an L holds the flight above across it, plus
+		// any space between; the code may ask for more.
+		const ell = turn === 'left' || turn === 'right';
+		const past = src && ell ? (src.past ?? Math.max(0, need(w) - above)) : 0;
+		const A = src ? (ell ? above + past : src.depth) : 0;
 		for (let r = 1; r <= k; r++) {
 			y += R;
 			if (r < k) {
@@ -437,17 +447,20 @@ export function stairs(s: StairInput): StairResult {
 		const W2 = above;
 		const G = turn === 'u-left' || turn === 'u-right' ? (src.gap ?? 0) : 0;
 		let B = 0;
+		let next = 0;
 		let rects: Rect[];
 		let no: V2;
 		let nd: V2;
 		if (turn === 'right' || turn === 'left') {
-			B = Math.max(src.before ?? Math.max(W1, need(W2)), W1);
+			next = Math.max(0, src.next ?? need(W2) - W1);
+			B = W1 + next;
 			const c0 = turn === 'right' ? 0 : W1 - B;
 			rects = [{ a0: 0, a1: A, c0, c1: c0 + B }];
 			nd = turn === 'right' ? sr : back(sr);
 			no = turn === 'right' ? toPlan(e, d, A, B) : toPlan(e, d, A - W2, W1 - B);
 		} else if (turn === 'u-right' || turn === 'u-left') {
-			B = src.before ?? A;
+			next = Math.max(12 - A, src.next ?? 0);
+			B = A + next;
 			const sgn = turn === 'u-right' ? 1 : -1;
 			// The gap and the flight above lie off the turning side.
 			const [g0, g1] = sgn > 0 ? [W1, W1 + G] : [-G, 0];
@@ -476,7 +489,7 @@ export function stairs(s: StairInput): StairResult {
 			holes.push({ a0: far ? a1 - na : a0, a1: far ? a1 : a0 + na, c0: right ? c1 - nc : c0, c1: right ? c1 : c0 + nc });
 		}
 		const outline = cells(rects.map((r) => rectToPlan(e, d, r)), holes.map((r) => rectToPlan(e, d, r))).loops;
-		lands.push({ ...src, src, turn, at: 0, depth: A, before: B, gap: G, width: src.width ?? null, below: W1, above: W2, x0: x, x1: x + A, o: e, d, rects, holes, outline, size: [a1 - a0, c1 - c0] });
+		lands.push({ ...src, src, turn, at: 0, depth: A, before: B, past, next, gap: G, width: src.width ?? null, below: W1, above: W2, x0: x, x1: x + A, o: e, d, rects, holes, outline, size: [a1 - a0, c1 - c0] });
 		x += A;
 		o = no;
 		d = nd;

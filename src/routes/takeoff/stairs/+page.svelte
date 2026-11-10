@@ -222,6 +222,7 @@
 					{/if}
 					{@const p = r.spots[sl]}
 					{@const turned = p.turn !== 'straight'}
+					{@const ell = p.turn === 'left' || p.turn === 'right'}
 					<div class="card spot">
 						<div class="row">
 							<span class="label">Landing {sl + 1}<small>On riser {p.at} of {r.risers} · or tap one in the drawing</small></span>
@@ -238,18 +239,21 @@
 						</div>
 						<div class="two">
 							<Field label="Height" value={p.height} bare="ft" min={1} max={r.finishedRise} note="Finished, snaps to a riser" onchange={(v) => setSpot(sl, { at: v / r.riser })} />
-							<Field label={turned ? 'Past the riser' : 'Depth'} value={p.depth} min={12} max={240} note={turned ? 'Walking onto it' : 'Along the run'} onchange={(v) => setSpot(sl, { depth: v })} />
+							{#if ell}
+								<Field label="Past the riser" value={p.past} min={0} max={120} note="Last riser to the flight above" onchange={(v) => setSpot(sl, { past: v })} />
+							{:else}
+								<Field label="Depth" value={p.depth} min={12} max={240} note={turned ? 'Riser to the back of the landing' : 'Along the run'} onchange={(v) => setSpot(sl, { depth: v })} />
+							{/if}
 						</div>
 						{#if turned}
 							<div class="two">
-								<Field label="To the next riser" value={p.before} min={12} max={240} note={p.src.before == null ? 'Code minimum' : 'Set by hand'} onchange={(v) => setSpot(sl, { before: v })} />
-								{#if p.turn === 'u-left' || p.turn === 'u-right'}
+								{#if ell}
+									<Field label="Before the next riser" value={p.next} min={0} max={120} note="Side of the flight below to it" onchange={(v) => setSpot(sl, { next: v })} />
+								{:else}
+									<Field label="Next riser set back" value={p.next} min={-120} max={120} note="From the last riser; 0 lines up" onchange={(v) => setSpot(sl, { next: v })} />
 									<Field label="Gap between flights" value={p.gap} min={0} max={120} note="A well, or a wall" onchange={(v) => setSpot(sl, { gap: v })} />
 								{/if}
 							</div>
-							{#if p.src.before != null}
-								<button class="pill reset" onclick={() => setSpot(sl, { before: null })}>Back to the code minimum</button>
-							{/if}
 						{/if}
 						{#if p.src.width != null}
 							<div class="opt">
@@ -419,10 +423,6 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
-	}
-	.reset {
-		align-self: flex-start;
-		font-size: 0.78rem;
 	}
 	.mini {
 		font-size: 0.75rem;

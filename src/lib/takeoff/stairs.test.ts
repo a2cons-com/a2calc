@@ -90,10 +90,26 @@ describe('stairs', () => {
 		expect(b.o[1]).toBeCloseTo(-4, 6);
 		expect(stairCuts(input, r, String).filter((c) => c.what === 'Treads').length).toBe(2);
 	});
-	it('keeps an L landing deep enough for the flight above, and warns when short', () => {
-		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30, turn: 'left', width: 40, before: 30 }] });
-		expect(r.spots[0].depth).toBe(40);
-		expect(r.spots[0].before).toBe(36);
+	it('sizes an L landing from the widths plus the spaces past and before the risers', () => {
+		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30, turn: 'left', width: 40 }] });
+		expect(r.spots[0].past).toBe(0);
+		expect(r.spots[0].next).toBe(0);
+		expect(r.spots[0].size).toEqual([40, 36]);
+		const s = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30, turn: 'left', width: 40, past: 2, next: 3 }] });
+		expect(s.spots[0].size).toEqual([42, 39]);
+		expect(s.flights[1].o[0]).toBeCloseTo(s.flights[0].run + 2, 6);
+		expect(s.flights[1].o[1]).toBeCloseTo(-3, 6);
+		// A narrow stair gets the code's 36" anyway.
+		const n = stairs({ ...base, rise: 120, width: 30, spots: [{ at: 8, depth: 30, turn: 'right' }] });
+		expect(n.spots[0].past).toBe(6);
+		expect(n.spots[0].size).toEqual([36, 36]);
+	});
+	it('staggers the risers at a U landing', () => {
+		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 36, turn: 'u-right', next: 4 }] });
+		expect(r.flights[1].o[0]).toBeCloseTo(r.flights[0].run - 4, 6);
+		expect(r.spots[0].size).toEqual([40, 72]);
+	});
+	it('warns on a landing too shallow', () => {
 		const s = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30 }] });
 		expect(s.warnings.some((w) => w.startsWith('Landing 1'))).toBe(true);
 	});
