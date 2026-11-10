@@ -132,15 +132,40 @@
 		let min = new T.Vector3(Infinity, 0, Infinity);
 		let max = new T.Vector3(-Infinity, 1, -Infinity);
 		for (const [key, list] of groups) {
-			const [name, shape] = key.split('|') as [string, 'box' | 'cyl'];
+			const [name, shape] = key.split('|') as [string, 'box' | 'cyl' | 'prism'];
 			const spec = input.mats[name] ?? { color: '--faint' };
 			const color = new T.Color(css(spec.color));
 			if (spec.tint) color.lerp(accent, spec.tint);
 			const see = spec.opacity !== undefined && spec.opacity < 1;
 			const material = new T.MeshLambertMaterial({ color, transparent: see, opacity: spec.opacity ?? 1, depthWrite: !see });
-			const mesh = new T.InstancedMesh(unit[shape], material, list.length);
+			if (shape === 'prism') {
+				// Each its own outline: a mesh apiece, not instanced.
+				for (const s of list) {
+					const outline = new T.Shape(s.profile!.map(([x, y]) => new T.Vector2(x, y)));
+					const g = new T.ExtrudeGeometry(outline, { depth: 1, bevelEnabled: false });
+					g.translate(0, 0, -0.5);
+					const m = new T.Mesh(g, material);
+					q.setFromAxisAngle(up, s.ry);
+					m.matrixAutoUpdate = false;
+					m.matrix.compose(v.set(...s.c), q, sc.set(1, 1, s.s[2]));
+					model.add(m);
+					for (const [x, y] of s.profile!) {
+						const p = new T.Vector3(x, y, 0).applyMatrix4(m.matrix);
+						min = min.min(new T.Vector3(p.x, 0, p.z));
+						max = max.max(p);
+					}
+					if (spec.edges) {
+						const e = new T.LineSegments(new T.EdgesGeometry(g, 20), new T.LineBasicMaterial({ color: css(spec.edge ?? '--wood-edge'), transparent: true, opacity: 0.5 }));
+						e.matrixAutoUpdate = false;
+						e.matrix.copy(m.matrix);
+						model.add(e);
+					}
+				}
+				continue;
+			}
+			const mesh = new T.InstancedMesh(unit[shape as 'box' | 'cyl'], material, list.length);
 			mesh.userData.solids = list;
-			const src = edgePts[shape].getAttribute('position');
+			const src = edgePts[shape as 'box' | 'cyl'].getAttribute('position');
 			const lines = spec.edges ? new Float32Array(list.length * src.count * 3) : null;
 			list.forEach((s, i) => {
 				if (s.rz) q.setFromEuler(eu.set(0, s.ry, s.rz, 'YZX'));

@@ -22,7 +22,10 @@ export interface Solid {
 	/** Tilt about the solid's own z (across), radians: a sloped stringer. */
 	rz?: number;
 	mat: string;
-	shape?: 'box' | 'cyl';
+	/** A prism: `profile` (in the solid's own x-y plane, about its center)
+	 *  pushed out along its own z by s[2]. */
+	shape?: 'box' | 'cyl' | 'prism';
+	profile?: [number, number][];
 	/** What a tap on it selects: a wall's run id, a concrete piece's index. */
 	pick?: number;
 }
@@ -176,6 +179,31 @@ export function concreteScene(pieces: Piece[], selected: number): Scene {
 	return { solids, mats };
 }
 
+/** A stringer's outline, along its flight (from the first riser) and up:
+ *  plumb and level cuts at the seat, the notches, a plumb cut at the top
+ *  (held under `support`), the bottom edge parallel to the notches. */
+export function stringerOutline(f: { risers: number; seat: number; firstRise: number }, R: number, T: number, drop: number, support: number): [number, number][] {
+	const sl = R / T;
+	const c1 = f.seat + f.firstRise;
+	const bottom = (a: number) => c1 + (a - T) * sl - drop;
+	const pts: [number, number][] = [
+		[0, f.seat],
+		[0, c1]
+	];
+	let c = c1;
+	let a = 0;
+	for (let k = 1; k < f.risers; k++) {
+		a += T;
+		pts.push([a, c]);
+		c += R;
+		pts.push([a, c]);
+	}
+	pts[pts.length - 1][1] = Math.min(c, support);
+	pts.push([a, Math.min(bottom(a), support - 1)]);
+	pts.push([Math.max(0, T + (f.seat + drop - c1) / sl), f.seat]);
+	return pts;
+}
+
 /** A stair, turns and all: floors (the upper one seen through, with its
  *  opening), stringers, treads and risers, landings (their surface only). */
 export function stairScene(input: StairInput, r: StairResult): Scene {
@@ -214,23 +242,14 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 	const drop = Math.max(0.5, r.throat);
 	for (const f of r.flights) {
 		if (f.risers < 2) continue;
-		// Stringers, spread across the flight; along runs from its first riser.
+		// Stringers, spread across the flight: the cut outline (as in the
+		// section) pushed out 1½", along from the flight's first riser.
 		const zs = Array.from({ length: f.stringers }, (_, i) => 0.75 + ((f.width - 1.5) * i) / Math.max(1, f.stringers - 1));
-		const c1 = f.seat + f.firstRise;
-		const inner = (a: number) => c1 + (a - T) * (R / T);
-		const len = f.run / Math.cos(th);
-		const am = f.run / 2;
-		const ym = inner(am);
-		const ac = am + (Math.sin(th) * drop) / 2;
-		const yc = ym - (Math.cos(th) * drop) / 2;
+		const profile = stringerOutline(f, R, T, drop / Math.cos(th), f === r.flights[r.flights.length - 1] ? rise : f.y1 - tt);
+		const top = Math.max(...profile.map((p) => p[1]));
 		for (const z of zs) {
-			solids.push(box(f.o, f.d, ac - len / 2, ac + len / 2, yc - drop / 2, yc + drop / 2, z - 0.75, z + 0.75, 'stringer', th));
-			// The teeth under each tread.
-			for (let k = 1; k < f.risers; k++) {
-				const a0 = (k - 1) * T;
-				const c = c1 + (k - 1) * R;
-				solids.push(box(f.o, f.d, a0, a0 + T, c - R, c, z - 0.75, z + 0.75, 'stringer'));
-			}
+			const p = toPlan(f.o, f.d, 0, z);
+			solids.push({ c: [p[0], 0, p[1]], s: [0.1, top * 2, 1.5], ry: Math.atan2(-f.d[1], f.d[0]), mat: 'stringer', shape: 'prism', profile });
 		}
 	}
 	for (const s of r.steps) {
