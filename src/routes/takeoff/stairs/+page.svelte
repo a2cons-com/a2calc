@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { formatFtIn, formatNumber } from '$lib/calc/units';
 	import { prefs, stairs as st } from '$lib/stores/app.svelte';
-	import { codeNotes, CODES, stairCuts, stairs, stringerSpacing, TURNS, type LandingSpot, type NotchCorner, type StairCode, type StringerSize } from '$lib/takeoff/stairs';
+	import { codeNotes, CODES, stairCuts, stairs, stringerSpacing, TURNS, stairRuns, type LandingSpot, type Notch, type NotchCorner, type StairCode, type StringerSize } from '$lib/takeoff/stairs';
 	import { stairScene } from '$lib/takeoff/scene';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
@@ -73,16 +73,37 @@
 		const list = spots();
 		if (d < 0 && list.length) {
 			list.splice(Math.min(selL, list.length - 1), 1);
-		} else if (d > 0 && list.length < r.risers - 1) {
-			// The new one goes halfway up the tallest flight.
-			let best = 0;
-			r.flights.forEach((f, i) => f.risers > r.flights[best].risers && (best = i));
-			const below = best ? list[best - 1].at : 0;
-			list.splice(best, 0, { at: below + Math.max(1, Math.floor(r.flights[best].risers / 2)), depth: st.landingDepth });
-			selL = best;
 		}
 		st.spots = list.length ? list : null;
 		st.landings = list.length;
+	}
+	/** A new landing goes halfway up the flight picked for it. */
+	let choosing = $state(false);
+	const roomy = $derived(r.flights.map((f, i) => ({ f, i })).filter(({ f }) => f.risers > 1));
+	function more() {
+		if (roomy.length === 1) addIn(roomy[0].i);
+		else choosing = !choosing;
+	}
+	function addIn(fi: number) {
+		choosing = false;
+		const list = spots();
+		const f = r.flights[fi];
+		if (!f || f.risers < 2) return;
+		const below = fi ? list[fi - 1].at : 0;
+		list.splice(fi, 0, { at: below + Math.floor(f.risers / 2), depth: st.landingDepth });
+		st.spots = list;
+		st.landings = list.length;
+		selL = fi;
+	}
+	/** A wall notch where a wall most likely ends: an L's inside corner,
+	 *  sized to the spaces already set there (4½″, a 2×4 wall with drywall,
+	 *  where there are none). */
+	function notchFor(p: (typeof r.spots)[number]): Notch {
+		const side = p.turn === 'left' || p.turn === 'u-left' ? 'left' : 'right';
+		const wall = 4.5;
+		if (p.turn === 'left' || p.turn === 'right') return { corner: `near-${side}`, along: p.past || wall, across: p.next || wall };
+		if (p.turn === 'u-left' || p.turn === 'u-right') return { corner: `far-${side}`, along: wall, across: p.gap || wall };
+		return { corner: 'far-left', along: wall, across: wall };
 	}
 
 	/** Landings: tap one in the drawing, then move it a riser at a time (or
@@ -126,8 +147,20 @@
 				{/each}
 			</div>
 			{#if view === 'section'}
-				<Zoom><StairSection input={st} {r} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
-				<p class="fine hint">{r.turns ? 'Unfolded along the walking line.' : 'Cut down the middle.'} Dashed: the nosing line and the headroom above it.</p>
+				{#if r.turns}
+					<!-- One section per straight run: swipe across them. -->
+					<div class="runs">
+						{#each stairRuns(r) as part, k (k)}
+							<div class="run">
+								<span class="mini">Run {k + 1} · {part[0] === part[1] ? `flight ${part[0] + 1}` : `flights ${part[0] + 1}–${part[1] + 1}`}</span>
+								<Zoom><StairSection input={st} {r} {part} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<Zoom><StairSection input={st} {r} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
+				{/if}
+				<p class="fine hint">{r.turns ? 'Each straight run cut down its middle; swipe across.' : 'Cut down the middle.'} Dashed: the nosing line and the headroom above it.</p>
 			{:else if view === 'plan'}
 				<Zoom><StairPlan {r} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
 				<p class="fine hint">From above; tap a landing to set it up. Dashed: the opening in the upper floor.</p>
@@ -206,9 +239,20 @@
 						<button class="pill" class:on={st.landings === null && !r.custom} onclick={autoLandings}>Auto</button>
 						<button class="icon-btn" aria-label="One landing fewer" onclick={() => landings(-1)}>−</button>
 						<span class="num count">{r.landings}</span>
-						<button class="icon-btn" aria-label="One landing more" onclick={() => landings(1)}>+</button>
+						<button class="icon-btn" aria-label="One landing more" onclick={more} disabled={!roomy.length}>+</button>
 					</div>
 				</div>
+				{#if choosing}
+					<div class="card pickf">
+						<span class="mini">Put the new landing in</span>
+						<div class="adds">
+							{#each roomy as { f, i } (i)}
+								<button class="pill" onclick={() => addIn(i)}>Flight {i + 1} · {f.risers} risers</button>
+							{/each}
+							<button class="btn quiet" onclick={() => (choosing = false)}>Cancel</button>
+						</div>
+					</div>
+				{/if}
 				{#if !r.custom}
 					<Field label="Landing depth" bind:value={st.landingDepth} min={12} max={240} note="In the direction of travel" />
 				{/if}
@@ -280,7 +324,7 @@
 						{#if p.src.width == null || !p.src.notch}
 							<div class="adds">
 								{#if p.src.width == null}<button class="pill" onclick={() => setSpot(sl, { width: p.below })}>+ Width change above</button>{/if}
-								{#if !p.src.notch}<button class="pill" onclick={() => setSpot(sl, { notch: { corner: 'far-left', along: 4.5, across: 4.5 } })}>+ Wall notch</button>{/if}
+								{#if !p.src.notch}<button class="pill" onclick={() => setSpot(sl, { notch: notchFor(p) })}>+ Wall notch</button>{/if}
 							</div>
 						{/if}
 						<p class="fine">
@@ -383,6 +427,29 @@
 	}
 	.spot .fine {
 		margin: 0;
+	}
+	.runs {
+		display: flex;
+		gap: 10px;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		overscroll-behavior-x: contain;
+	}
+	.run {
+		flex: 0 0 92%;
+		scroll-snap-align: center;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.run .mini {
+		text-align: center;
+	}
+	.pickf {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 10px;
 	}
 	.views {
 		align-self: center;

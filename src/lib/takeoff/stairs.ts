@@ -603,6 +603,19 @@ export function stairs(s: StairInput): StairResult {
 	};
 }
 
+/** The straight runs of a stair: flights from..to between turns. */
+export function stairRuns(r: StairResult): [number, number][] {
+	const out: [number, number][] = [];
+	let from = 0;
+	r.spots.forEach((p, i) => {
+		if (p.turn === 'straight') return;
+		out.push([from, i]);
+		from = i + 1;
+	});
+	out.push([from, r.flights.length - 1]);
+	return out;
+}
+
 export interface StairCut {
 	what: string;
 	size: string;

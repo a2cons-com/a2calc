@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cells, stairCuts, stairs, type StairInput } from './stairs';
+import { cells, stairCuts, stairRuns, stairs, type StairInput } from './stairs';
 
 const base: StairInput = {
 	code: 'irc', rise: 108, finishBottom: 0.75, finishTop: 0.75, risers: null, tread: 10.5, nosing: 1,
@@ -128,5 +128,10 @@ describe('stairs', () => {
 		const r = stairs(base);
 		expect(r.openingPlan.size[0]).toBeCloseTo(r.opening, 4);
 		expect(r.openingPlan.size[1]).toBe(36);
+	});
+	it('splits a turning stair into its straight runs', () => {
+		const r = stairs({ ...base, rise: 170, spots: [{ at: 4, depth: 36 }, { at: 10, depth: 36, turn: 'left' }, { at: 16, depth: 36 }] });
+		expect(stairRuns(r)).toEqual([[0, 1], [2, 3]]);
+		expect(stairRuns(stairs(base))).toEqual([[0, 0]]);
 	});
 });

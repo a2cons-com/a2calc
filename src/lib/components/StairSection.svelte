@@ -3,11 +3,22 @@
 	// finish floor still to go on, stringers, treads and risers, landings,
 	// the upper floor with its opening, and the headroom line. Dimensioned:
 	// finished rise, riser and tread, total run, opening.
+	//
+	// With `part` (flights from..to: one straight run of a turning stair)
+	// only that run is cut, from the landing it starts on to the one it
+	// ends on, each landing as deep as it is in this run's direction.
 	import { formatFtIn } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
 	import type { StairInput, StairResult } from '$lib/takeoff/stairs';
 
-	let { input, r, selected = -1, onselect }: { input: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void } = $props();
+	let {
+		input,
+		r,
+		selected = -1,
+		onselect,
+		part
+	}: { input: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void; part?: [number, number] } = $props();
+	const uid = Math.random().toString(36).slice(2, 8);
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
 
 	const fb = $derived(Math.max(0, input.finishBottom));
@@ -31,8 +42,21 @@
 
 	// SVG y runs down: flip elevations.
 	const Y = (e: number) => -e;
-	const left = $derived(-before);
-	const right = $derived(r.run + after);
+	const last = $derived(r.flights.length - 1);
+	const from = $derived(part ? part[0] : 0);
+	const to = $derived(part ? Math.min(part[1], last) : last);
+	/** Landings this run starts on and ends on (part only). */
+	const startL = $derived(part && from > 0 ? r.spots[from - 1] : null);
+	const endL = $derived(part && to < last ? r.spots[to] : null);
+	const x0p = $derived(r.flights[from].x0);
+	const x1p = $derived(r.flights[to].x1);
+	const left = $derived(startL ? x0p - startL.before - 18 : -before);
+	const right = $derived(endL ? endL.x1 + 18 : r.run + after);
+	const inPart = (fi: number) => fi >= from && fi <= to;
+	/** Landings drawn the usual way: between this run's flights, and the one it ends on. */
+	const shown = $derived(r.spots.map((l, i) => ({ l, i })).filter(({ i }) => i >= from && i <= to));
+	const base = $derived(startL ? startL.height + fb : fb);
+	const peak = $derived(endL ? endL.height + fb : top);
 
 	/** One flight's stringer: a plumb and a level cut at the seat, the
 	 *  notches, a plumb cut at the top; the bottom edge parallel. */
@@ -94,12 +118,17 @@
 {/snippet}
 
 <svg viewBox="{left - off * 3} {Y(top + fs * 3.2)} {right - left + off * 5.4} {top + slab + fs * (multi ? 9 : 7)}" role="img" aria-label="Stair section">
+	<defs>
+		<clipPath id="sec-{uid}"><rect x={startL ? x0p - startL.before : left} y={Y(top + fd + fs * 4)} width={(endL ? endL.x1 : right) - (startL ? x0p - startL.before : left)} height={top + fd + slab + fs * 8} /></clipPath>
+	</defs>
+	<g clip-path="url(#sec-{uid})">
 	<!-- lower floor: slab or subfloor, finish on top -->
 	<rect x={left} y={Y(0)} width={right - left} height={slab} class="rough" stroke-width={sw} />
 	{#if fb > 0}<rect x={left} y={Y(fb)} width={right - left} height={fb} class="finish" stroke-width={sw} />{/if}
 
-	<!-- upper floor: framing behind the opening and past the top -->
-	{#if r.openingAt > left}
+	<!-- upper floor: framing behind the opening and past the top (a turning
+	     stair's opening is a plan shape: shown in the plan) -->
+	{#if !part && r.openingAt > left}
 		<rect x={left} y={Y(rise)} width={Math.max(0, r.openingAt - left)} height={fd} class="rough" stroke-width={sw} />
 		{#if ftp > 0}<rect x={left} y={Y(top)} width={Math.max(0, r.openingAt - left)} height={ftp} class="finish" stroke-width={sw} />{/if}
 	{/if}
@@ -107,7 +136,15 @@
 	{#if ftp > 0}<rect x={r.run} y={Y(top)} width={right - r.run} height={ftp} class="finish" stroke-width={sw} />{/if}
 
 	<!-- landings: platform framing on posts -->
-	{#each r.spots as l, i (i)}
+	{#if startL}
+		{@const ly = startL.height + fb}
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<g class="land" class:sel={selected === from - 1} onclick={() => onselect?.(from - 1)}>
+			<rect x={x0p - startL.before} y={Y(ly)} width={startL.before} height={ly - fb} class="hit" />
+			<rect x={x0p - startL.before} y={Y(ly)} width={startL.before} height={tt} class="tread" stroke-width={sw} />
+		</g>
+	{/if}
+	{#each shown as { l, i } (i)}
 		{@const ly = l.height + fb}
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<g class="land" class:sel={selected === i} onclick={() => onselect?.(i)}>
@@ -119,11 +156,11 @@
 
 	<!-- stringers -->
 	{#each r.flights as _, i (i)}
-		<polygon points={stringer(i)} class="stringer" stroke-width={sw} />
+		{#if inPart(i)}<polygon points={stringer(i)} class="stringer" stroke-width={sw} />{/if}
 	{/each}
 
 	<!-- risers and treads -->
-	{#each r.steps as s, i (i)}
+	{#each r.steps.filter((s) => inPart(s.flight)) as s, i (i)}
 		<rect x={s.x0 - rt} y={Y(s.y - (s.kind === 'tread' ? tt : s.kind === 'top' ? ftp : tt))} width={rt} height={Math.max(0, r.riserBoard)} class="riser" stroke-width={sw} />
 		{#if s.kind === 'tread'}
 			<rect x={s.x0 - rt - nose} y={Y(s.y)} width={s.x1 - s.x0 + rt + nose} height={tt} class="tread" stroke-width={sw} />
@@ -133,37 +170,58 @@
 	<!-- nosing line and the headroom it needs -->
 	<polyline points={line(nosingLine)} class="nl" stroke-width={sw} stroke-dasharray="{fs * 0.5} {fs * 0.35}" fill="none" />
 	<polyline points={line(nosingLine, r.limits.headroom)} class="hr" stroke-width={sw * 1.4} stroke-dasharray="{fs * 0.8} {fs * 0.4}" fill="none" />
-	<text x={nosingLine[0][0] + fs * 0.4} y={Y(nosingLine[0][1] + r.limits.headroom) - fs * 0.5} font-size={fs * 0.85} class="hrt">Headroom {ft(r.limits.headroom)}</text>
+	</g>
+	{#if from === 0}
+		<text x={nosingLine[0][0] + fs * 0.4} y={Y(nosingLine[0][1] + r.limits.headroom) - fs * 0.5} font-size={fs * 0.85} class="hrt">Headroom {ft(r.limits.headroom)}</text>
+	{/if}
 
 	<!-- dimensions: finished rise at the left, run below, opening above -->
-	{@render vdim(left - off, Y(fb), Y(top), `${ft(r.finishedRise)} finished`, -1)}
-	{@render vdim(left - off * 2, Y(0), Y(rise), `${ft(rise)} rough`, -1)}
-	{#if multi}
+	{#if part}
+		{@render vdim(left - off, Y(base), Y(peak), `${ft(peak - base)} this run`, -1)}
+		{@const dy = Y(0) + slab + off * 0.9}
+		{#if startL}{@render hdim(x0p - startL.before, x0p, dy, ft(startL.before), true)}{/if}
 		{#each r.flights as f, i (i)}
-			{@render hdim(f.x0, f.x1, Y(0) + slab + off * 0.9, ft(f.run), true)}
-			{#if i < r.flights.length - 1}
-				{@render hdim(f.x1, r.flights[i + 1].x0, Y(0) + slab + off * 0.9, ft(r.flights[i + 1].x0 - f.x1), true)}
+			{#if inPart(i)}
+				{@render hdim(f.x0, f.x1, dy, ft(f.run), true)}
+				{#if i < to}{@render hdim(f.x1, r.flights[i + 1].x0, dy, ft(r.flights[i + 1].x0 - f.x1), true)}{/if}
 			{/if}
 		{/each}
-		{@render hdim(0, r.run, Y(0) + slab + off * 2.1, `${ft(r.run)} total run`, true)}
+		{#if endL}{@render hdim(endL.x0, endL.x1, dy, ft(endL.depth), true)}{/if}
+		{#if to > from}{@render hdim(x0p, x1p, Y(0) + slab + off * 2.1, `${ft(x1p - x0p)} run`, true)}{/if}
 	{:else}
-		{@render hdim(0, r.run, Y(0) + slab + off * 0.9, `${ft(r.run)} run`, true)}
+		{@render vdim(left - off, Y(fb), Y(top), `${ft(r.finishedRise)} finished`, -1)}
+		{@render vdim(left - off * 2, Y(0), Y(rise), `${ft(rise)} rough`, -1)}
+		{#if multi}
+			{#each r.flights as f, i (i)}
+				{@render hdim(f.x0, f.x1, Y(0) + slab + off * 0.9, ft(f.run), true)}
+				{#if i < r.flights.length - 1}
+					{@render hdim(f.x1, r.flights[i + 1].x0, Y(0) + slab + off * 0.9, ft(r.flights[i + 1].x0 - f.x1), true)}
+				{/if}
+			{/each}
+			{@render hdim(0, r.run, Y(0) + slab + off * 2.1, `${ft(r.run)} total run`, true)}
+		{:else}
+			{@render hdim(0, r.run, Y(0) + slab + off * 0.9, `${ft(r.run)} run`, true)}
+		{/if}
 	{/if}
 	<!-- each landing's height, finished floor to finished landing: critical -->
-	{#each r.spots as l, i (i)}
+	{#if startL}
+		{@const cx = x0p - startL.before / 2}
+		<text x={cx} y={Y(startL.height + fb) - fs * 0.5} font-size={fs * 0.85} class="lt" class:selt={selected === from - 1} text-anchor="middle">Landing {from}</text>
+		{@render vdim(cx, Y(fb), Y(startL.height + fb), `+${ft(startL.height)}`, -1)}
+	{/if}
+	{#each shown as { l, i } (i)}
 		{@const cx = (l.x0 + l.x1) / 2}
 		<text x={cx} y={Y(l.height + fb) - fs * 0.5} font-size={fs * 0.85} class="lt" class:selt={selected === i} text-anchor="middle">Landing {i + 1}</text>
 		{@render vdim(cx, Y(fb), Y(l.height + fb), `+${ft(l.height)}`, -1)}
 	{/each}
-	{#if r.opening > 0}
-		<!-- With a turn the opening is a plan shape: give its size from the plan. -->
-		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, r.turns ? `Opening ${ft(r.openingPlan.size[0])} × ${ft(r.openingPlan.size[1])} in plan` : `${ft(r.opening)} opening`)}
+	{#if r.opening > 0 && !part}
+		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, `${ft(r.opening)} opening`)}
 	{/if}
-	{#if r.steps.length > 1}
-		{@const s1 = r.steps[0]}
-		{@render vdim(-rt - nose - fs * 0.9, Y(fb), Y(s1.y), ft(r.riser), -1)}
+	{#if from === 0 && r.flights[0].risers > 1}
+		{@const f = r.flights[0]}
+		{@render vdim(f.x0 - rt - nose - fs * 0.9, Y(f.y0), Y(f.y0 + r.riser), ft(r.riser), -1)}
 	{/if}
-	<text x={right + off * 0.3} y={Y(top) + fs * 0.4} font-size={fs * 0.8} class="lbl">FF {ft(ftp)}</text>
+	{#if to === last}<text x={right + off * 0.3} y={Y(top) + fs * 0.4} font-size={fs * 0.8} class="lbl">FF {ft(ftp)}</text>{/if}
 	<text x={right + off * 0.3} y={Y(fb) + fs * 0.4} font-size={fs * 0.8} class="lbl">FF {ft(fb)}</text>
 </svg>
 
