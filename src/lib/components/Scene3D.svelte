@@ -90,7 +90,9 @@
 	function size() {
 		if (!renderer) return;
 		const w = host.clientWidth;
-		const h = Math.round(Math.min(Math.max(w * 0.8, 260), 420));
+		// A container may set the height (--scene-h); else it follows the width.
+		const fixed = getComputedStyle(host).getPropertyValue('--scene-h').trim() !== '';
+		const h = fixed ? Math.max(120, host.clientHeight) : Math.round(Math.min(Math.max(w * 0.8, 260), 420));
 		renderer.setSize(w, h);
 		camera.aspect = w / h;
 		camera.updateProjectionMatrix();
@@ -221,7 +223,8 @@
 <style>
 	.three {
 		width: 100%;
-		min-height: 260px;
+		height: var(--scene-h, auto);
+		min-height: var(--scene-min, 260px);
 		touch-action: none;
 		border-radius: 12px;
 		overflow: hidden;

@@ -156,7 +156,8 @@
 		{@render vdim(cx, Y(fb), Y(l.height + fb), `+${ft(l.height)}`, -1)}
 	{/each}
 	{#if r.opening > 0}
-		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, `${ft(r.opening)} opening`)}
+		<!-- With a turn the opening is a plan shape: give its size from the plan. -->
+		{@render hdim(r.openingAt, r.run, Y(top) - off * 0.8, r.turns ? `Opening ${ft(r.openingPlan.size[0])} × ${ft(r.openingPlan.size[1])} in plan` : `${ft(r.opening)} opening`)}
 	{/if}
 	{#if r.steps.length > 1}
 		{@const s1 = r.steps[0]}
@@ -170,7 +171,7 @@
 	svg {
 		width: 100%;
 		display: block;
-		max-height: 340px;
+		max-height: var(--drawing-h, 340px);
 	}
 	.rough {
 		fill: var(--concrete-top);

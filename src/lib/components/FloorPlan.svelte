@@ -144,7 +144,7 @@
 <style>
 	svg {
 		width: 100%;
-		max-height: 380px;
+		max-height: var(--drawing-h, 380px);
 		display: block;
 		user-select: none;
 		-webkit-user-select: none;

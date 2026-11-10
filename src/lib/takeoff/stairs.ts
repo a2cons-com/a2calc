@@ -37,10 +37,133 @@ export interface StairInput {
 	stringer: StringerSize;
 }
 
-/** A landing placed by hand: `at` risers below it, `depth` along the run. */
+/** Which way the stair goes on from a landing: straight on, a quarter
+ *  turn (L) or a half turn (U), to the left or right walking up. */
+export type Turn = 'straight' | 'left' | 'right' | 'u-left' | 'u-right';
+export const TURNS: [Turn, string][] = [
+	['straight', 'Straight'],
+	['left', 'L left'],
+	['right', 'L right'],
+	['u-left', 'U left'],
+	['u-right', 'U right']
+];
+
+/** A corner cut out of a landing, for a wall or a post. Corners are named
+ *  walking up onto the landing: near is the riser side. */
+export type NotchCorner = 'near-left' | 'near-right' | 'far-left' | 'far-right';
+export interface Notch {
+	corner: NotchCorner;
+	/** Along the arriving flight, and across it. */
+	along: number;
+	across: number;
+}
+
+/** A landing placed by hand: `at` risers below it, `depth` past the last
+ *  riser in the direction of travel. The rest is optional. */
 export interface LandingSpot {
 	at: number;
 	depth: number;
+	turn?: Turn;
+	/** Turns: landing in front of the next flight's first riser, in its
+	 *  direction of travel (null: the least the code allows). */
+	before?: number | null;
+	/** Width of the flight above, if it changes (null: the same). */
+	width?: number | null;
+	/** U turns: space between the two flights (a well, or a wall). */
+	gap?: number | null;
+	notch?: Notch | null;
+}
+
+/** Plan point: x, and y down the screen (the 3D z). */
+export type V2 = [number, number];
+/** A rectangle: along (a0..a1) and across (c0..c1) in some frame. */
+export interface Rect {
+	a0: number;
+	a1: number;
+	c0: number;
+	c1: number;
+}
+
+/** The right-hand side, walking along d (y runs down the screen). */
+export const rightOf = (d: V2): V2 => [-d[1] || 0, d[0] || 0];
+const back = (d: V2): V2 => [-d[0] || 0, -d[1] || 0];
+/** A point `along` and `across` (to the right) from o heading d. */
+export const toPlan = (o: V2, d: V2, along: number, across: number): V2 => {
+	const s = rightOf(d);
+	return [o[0] + along * d[0] + across * s[0], o[1] + along * d[1] + across * s[1]];
+};
+/** A rectangle in a frame (axis-aligned headings only) as a plan rect. */
+export function rectToPlan(o: V2, d: V2, r: Rect): Rect {
+	const p = toPlan(o, d, r.a0, r.c0);
+	const q = toPlan(o, d, r.a1, r.c1);
+	return { a0: Math.min(p[0], q[0]), a1: Math.max(p[0], q[0]), c0: Math.min(p[1], q[1]), c1: Math.max(p[1], q[1]) };
+}
+
+/** Rectangles less holes, on the grid their edges make: the covered cells
+ *  merged along rows (to draw as boxes), and the outline loops. */
+export function cells(rects: Rect[], holes: Rect[] = []): { boxes: Rect[]; loops: V2[][] } {
+	const xs = [...new Set(rects.concat(holes).flatMap((r) => [r.a0, r.a1]))].sort((a, b) => a - b);
+	const ys = [...new Set(rects.concat(holes).flatMap((r) => [r.c0, r.c1]))].sort((a, b) => a - b);
+	const inside = (r: Rect, x: number, y: number) => x > r.a0 && x < r.a1 && y > r.c0 && y < r.c1;
+	const nx = xs.length - 1;
+	const ny = ys.length - 1;
+	const cov: boolean[][] = [];
+	for (let i = 0; i < nx; i++) {
+		cov.push([]);
+		for (let j = 0; j < ny; j++) {
+			const x = (xs[i] + xs[i + 1]) / 2;
+			const y = (ys[j] + ys[j + 1]) / 2;
+			cov[i].push(xs[i + 1] - xs[i] > EPS && ys[j + 1] - ys[j] > EPS && rects.some((r) => inside(r, x, y)) && !holes.some((r) => inside(r, x, y)));
+		}
+	}
+	const at = (i: number, j: number) => i >= 0 && j >= 0 && i < nx && j < ny && cov[i][j];
+	const boxes: Rect[] = [];
+	for (let j = 0; j < ny; j++)
+		for (let i = 0; i < nx; i++) {
+			if (!cov[i][j]) continue;
+			let k = i;
+			while (at(k + 1, j)) k++;
+			boxes.push({ a0: xs[i], a1: xs[k + 1], c0: ys[j], c1: ys[j + 1] });
+			i = k;
+		}
+	// Boundary edges, each cell's outside sides in one turning sense.
+	const edges = new Map<string, [number, number][]>();
+	const key = (i: number, j: number) => `${i},${j}`;
+	const add = (a: [number, number], b: [number, number]) => {
+		const k = key(...a);
+		if (!edges.has(k)) edges.set(k, []);
+		edges.get(k)!.push(b);
+	};
+	for (let i = 0; i < nx; i++)
+		for (let j = 0; j < ny; j++) {
+			if (!cov[i][j]) continue;
+			if (!at(i, j - 1)) add([i, j], [i + 1, j]);
+			if (!at(i + 1, j)) add([i + 1, j], [i + 1, j + 1]);
+			if (!at(i, j + 1)) add([i + 1, j + 1], [i, j + 1]);
+			if (!at(i - 1, j)) add([i, j + 1], [i, j]);
+		}
+	const loops: V2[][] = [];
+	for (const [k0, list] of edges) {
+		while (list.length) {
+			const [i0, j0] = k0.split(',').map(Number);
+			const pts: [number, number][] = [[i0, j0]];
+			let cur = list.pop()!;
+			while (key(...cur) !== k0) {
+				pts.push(cur);
+				const next = edges.get(key(...cur));
+				if (!next?.length) break;
+				cur = next.pop()!;
+			}
+			// Drop the points along straight runs.
+			const out = pts.filter((p, n) => {
+				const a = pts[(n + pts.length - 1) % pts.length];
+				const b = pts[(n + 1) % pts.length];
+				return !((a[0] === p[0] && p[0] === b[0]) || (a[1] === p[1] && p[1] === b[1]));
+			});
+			loops.push(out.map(([i, j]) => [xs[i], ys[j]]));
+		}
+	}
+	return { boxes, loops };
 }
 
 /** Hand-placed landings made valid for `n` risers: in order, each at
@@ -50,10 +173,13 @@ function normSpots(spots: LandingSpot[] | null | undefined, n: number): LandingS
 	const list = [...spots].filter((p) => Number.isFinite(p.at)).sort((a, b) => a.at - b.at).slice(0, n - 1);
 	if (!list.length) return null;
 	let prev = 0;
+	const len = (v: number | null | undefined, min: number) => (v == null || !Number.isFinite(v) ? null : Math.max(min, v));
 	return list.map((p, i) => {
 		const at = Math.min(n - (list.length - i), Math.max(prev + 1, Math.round(p.at)));
 		prev = at;
-		return { at, depth: Number.isFinite(p.depth) ? Math.max(12, p.depth) : 36 };
+		const turn = TURNS.some(([t]) => t === p.turn) ? p.turn : 'straight';
+		const notch = p.notch && Number.isFinite(p.notch.along) && Number.isFinite(p.notch.across) ? { corner: p.notch.corner, along: Math.max(1, p.notch.along), across: Math.max(1, p.notch.across) } : null;
+		return { at, depth: Number.isFinite(p.depth) ? Math.max(12, p.depth) : 36, turn, before: len(p.before, 12), width: len(p.width, 12), gap: len(p.gap, 0), notch };
 	});
 }
 
@@ -150,6 +276,41 @@ export interface Flight {
 	firstRise: number;
 	length: number;
 	stock: number;
+	/** Width, the stringers across it, and where it sits in plan: the
+	 *  left edge at its first riser, heading d. */
+	width: number;
+	stringers: number;
+	o: V2;
+	d: V2;
+}
+
+/** A landing as figured: where it is, its turn and sizes, and its shape. */
+export interface Landing extends LandingSpot {
+	turn: Turn;
+	/** As entered (to edit from). */
+	src: LandingSpot;
+	/** Depth past the arriving riser, and in front of the next one. */
+	depth: number;
+	before: number;
+	gap: number;
+	/** Widths of the flights below and above. */
+	below: number;
+	above: number;
+	/** Finished height above the finished floor; framing top (rough). */
+	height: number;
+	framing: number;
+	/** Along the unfolded run. */
+	x0: number;
+	x1: number;
+	/** Frame: the arriving flight's left edge at its last riser, heading
+	 *  on; the landing's pieces in that frame (along, across to the right). */
+	o: V2;
+	d: V2;
+	rects: Rect[];
+	holes: Rect[];
+	/** Outline in plan, and its overall size along and across. */
+	outline: V2[][];
+	size: [number, number];
 }
 
 export interface StairResult {
@@ -164,9 +325,15 @@ export interface StairResult {
 	landings: number;
 	/** Each landing: risers below it, depth, finished height above the
 	 *  finished floor, framing top above the rough floor, where it runs. */
-	spots: (LandingSpot & { height: number; framing: number; x0: number; x1: number })[];
-	/** Landings placed by hand. */
+	spots: Landing[];
+	/** Landings placed by hand; any of them turning. */
 	custom: boolean;
+	turns: boolean;
+	/** Plan: the floor past the top riser, the outline the stair covers
+	 *  (a0..a1 = plan x, c0..c1 = plan y), and the floor opening there. */
+	topFloor: Rect;
+	bounds: Rect;
+	openingPlan: { loops: V2[][]; boxes: Rect[]; size: [number, number] };
 	/** Upper floor framing underside (rough). */
 	ceiling: number;
 	/** Floor opening needed for headroom, back from the top riser. */
@@ -219,23 +386,36 @@ export function stairs(s: StairInput): StairResult {
 	const per = custom
 		? custom.map((p, i) => p.at - (i ? custom[i - 1].at : 0)).concat(n - custom[custom.length - 1].at)
 		: Array.from({ length: flightsN }, (_, i) => Math.floor(n / flightsN) + (i < n % flightsN ? 1 : 0));
-	const depthOf = (i: number) => (custom ? custom[i].depth : LD);
+	const W0 = pos(s.width, 12);
+	const maxSpacing = stringerSpacing(tt);
+	const stringersFor = (w: number) => Math.max(2, Math.ceil((w - 1.5) / maxSpacing - EPS) + 1);
+	const need = (w: number) => (L.landingByWidth ? Math.min(L.minLanding, w) : L.minLanding);
+	const spotIn = (i: number): LandingSpot => (custom ? custom[i] : { at: 0, depth: LD });
 
 	const steps: Step[] = [];
 	const flights: Flight[] = [];
+	const lands: Omit<Landing, 'height' | 'framing'>[] = [];
 	let x = 0;
 	let y = fb;
+	let o: V2 = [0, 0];
+	let d: V2 = [1, 0];
+	let w = W0;
 	per.forEach((k, f) => {
 		const x0 = x;
 		const y0 = y;
 		const last = f === flightsN - 1;
+		const src = last ? null : spotIn(f);
+		const turn: Turn = src?.turn ?? 'straight';
+		const above = src?.width ?? w;
+		// Depth past the riser: an L must hold the flight above across it.
+		const A = src ? (turn === 'left' || turn === 'right' ? Math.max(src.depth, above) : src.depth) : 0;
 		for (let r = 1; r <= k; r++) {
 			y += R;
 			if (r < k) {
 				steps.push({ kind: 'tread', x0: x, x1: x + T, y, flight: f });
 				x += T;
 			} else if (!last) {
-				steps.push({ kind: 'landing', x0: x, x1: x + depthOf(f), y, flight: f });
+				steps.push({ kind: 'landing', x0: x, x1: x + A, y, flight: f });
 			} else {
 				steps.push({ kind: 'top', x0: x, x1: x + Math.max(36, LD), y, flight: f });
 			}
@@ -246,8 +426,61 @@ export function stairs(s: StairInput): StairResult {
 		const firstRise = y0 + R - tt - seat;
 		const rough = k * R;
 		const length = Math.hypot(k * T, rough);
-		flights.push({ risers: k, treads: k - 1, x0, x1: x, y0, y1: y, rise: y - y0, run: x - x0, seat, firstRise, length, stock: stock(length) });
-		if (!last) x += depthOf(f);
+		flights.push({ risers: k, treads: k - 1, x0, x1: x, y0, y1: y, rise: y - y0, run: x - x0, seat, firstRise, length, stock: stock(length), width: w, stringers: stringersFor(w), o, d });
+		if (last || !src) return;
+
+		// The landing, in the frame of the arriving flight's left edge at
+		// its last riser: along (on up) and across (to the right).
+		const e = toPlan(o, d, x - x0, 0);
+		const sr = rightOf(d);
+		const W1 = w;
+		const W2 = above;
+		const G = turn === 'u-left' || turn === 'u-right' ? (src.gap ?? 0) : 0;
+		let B = 0;
+		let rects: Rect[];
+		let no: V2;
+		let nd: V2;
+		if (turn === 'right' || turn === 'left') {
+			B = Math.max(src.before ?? Math.max(W1, need(W2)), W1);
+			const c0 = turn === 'right' ? 0 : W1 - B;
+			rects = [{ a0: 0, a1: A, c0, c1: c0 + B }];
+			nd = turn === 'right' ? sr : back(sr);
+			no = turn === 'right' ? toPlan(e, d, A, B) : toPlan(e, d, A - W2, W1 - B);
+		} else if (turn === 'u-right' || turn === 'u-left') {
+			B = src.before ?? A;
+			const sgn = turn === 'u-right' ? 1 : -1;
+			// The gap and the flight above lie off the turning side.
+			const [g0, g1] = sgn > 0 ? [W1, W1 + G] : [-G, 0];
+			const [d0, d1] = sgn > 0 ? [W1 + G, W1 + G + W2] : [-G - W2, -G];
+			rects = [{ a0: 0, a1: A, c0: 0, c1: W1 }, { a0: A - B, a1: A, c0: d0, c1: d1 }];
+			if (G > EPS) rects.push({ a0: Math.max(0, A - B), a1: A, c0: g0, c1: g1 });
+			nd = back(d);
+			no = toPlan(e, d, A - B, sgn > 0 ? W1 + G + W2 : -G);
+		} else {
+			B = A;
+			rects = [{ a0: 0, a1: A, c0: 0, c1: Math.max(W1, W2) }];
+			nd = d;
+			no = toPlan(e, d, A, 0);
+		}
+		const a0 = Math.min(...rects.map((r) => r.a0));
+		const a1 = Math.max(...rects.map((r) => r.a1));
+		const c0 = Math.min(...rects.map((r) => r.c0));
+		const c1 = Math.max(...rects.map((r) => r.c1));
+		const nt = src.notch;
+		const holes: Rect[] = [];
+		if (nt) {
+			const far = nt.corner.startsWith('far');
+			const right = nt.corner.endsWith('right');
+			const na = Math.min(nt.along, a1 - a0);
+			const nc = Math.min(nt.across, c1 - c0);
+			holes.push({ a0: far ? a1 - na : a0, a1: far ? a1 : a0 + na, c0: right ? c1 - nc : c0, c1: right ? c1 : c0 + nc });
+		}
+		const outline = cells(rects.map((r) => rectToPlan(e, d, r)), holes.map((r) => rectToPlan(e, d, r))).loops;
+		lands.push({ ...src, src, turn, at: 0, depth: A, before: B, gap: G, width: src.width ?? null, below: W1, above: W2, x0: x, x1: x + A, o: e, d, rects, holes, outline, size: [a1 - a0, c1 - c0] });
+		x += A;
+		o = no;
+		d = nd;
+		w = W2;
 	});
 	const run = steps.find((st) => st.kind === 'top')!.x0;
 
@@ -271,11 +504,36 @@ export function stairs(s: StairInput): StairResult {
 	}
 	const opening = Math.max(0, run - openingAt);
 
+	const spots: Landing[] = lands.map((p, i) => {
+		const f = flights[i];
+		return { ...p, at: per.slice(0, i + 1).reduce((a, b) => a + b, 0), height: f.y1 - fb, framing: f.y1 - tt };
+	});
+
+	// In plan: the floor past the top riser, all the stair covers, and the
+	// opening: wherever the nosing line (or a landing) comes within the
+	// headroom of the upper floor framing.
+	const lf = flights[flights.length - 1];
+	const topFloor = rectToPlan(lf.o, lf.d, { a0: lf.run, a1: lf.run + 36, c0: 0, c1: lf.width });
+	const parts: Rect[] = flights.map((f) => rectToPlan(f.o, f.d, { a0: 0, a1: f.run, c0: 0, c1: f.width }));
+	for (const p of spots) for (const q of p.rects) parts.push(rectToPlan(p.o, p.d, q));
+	const bounds: Rect = {
+		a0: Math.min(...parts.map((q) => q.a0)),
+		a1: Math.max(...parts.map((q) => q.a1)),
+		c0: Math.min(...parts.map((q) => q.c0)),
+		c1: Math.max(...parts.map((q) => q.c1))
+	};
+	const open: Rect[] = [];
+	for (const f of flights) {
+		const a = Math.max(0, ((target - f.y0 - R) * T) / R);
+		if (a < f.run - EPS) open.push(rectToPlan(f.o, f.d, { a0: a, a1: f.run, c0: 0, c1: f.width }));
+	}
+	for (const p of spots) if (p.height + fb > target + EPS) for (const q of p.rects) open.push(rectToPlan(p.o, p.d, q));
+	const oc = open.length ? cells(open) : { boxes: [], loops: [] };
+	const span = (lo: (q: Rect) => number, hi: (q: Rect) => number) => Math.max(...open.map(hi)) - Math.min(...open.map(lo));
+	const openingPlan = { ...oc, size: (open.length ? [span((q) => q.a0, (q) => q.a1), span((q) => q.c0, (q) => q.c1)] : [0, 0]) as [number, number] };
+
 	const notch = (R * T) / Math.hypot(R, T);
 	const throat = STRINGER_DEPTH[s.stringer] - notch;
-	const W = pos(s.width, 12);
-	const maxSpacing = stringerSpacing(tt);
-	const stringers = Math.max(2, Math.ceil((W - 1.5) / maxSpacing - EPS) + 1);
 	const treads = n - flightsN;
 	const comfort = 2 * R + T;
 
@@ -288,11 +546,13 @@ export function stairs(s: StairInput): StairResult {
 	if (L.nosingUnder && T < L.nosingUnder - EPS && (s.nosing < L.nosing[0] - EPS || s.nosing > L.nosing[1] + EPS))
 		warnings.push(`With a run under ${f16(L.nosingUnder)}, the nosing must be ${f16(L.nosing[0])} to ${f16(L.nosing[1])}.`);
 	else if (s.nosing > L.nosing[1] + EPS) warnings.push(`Nosing over ${f16(L.nosing[1])}.`);
-	if (W < L.minWidth - EPS) warnings.push(`Narrower than the ${f16(L.minWidth)} minimum width.`);
+	if (flights.some((f) => f.width < L.minWidth - EPS)) warnings.push(`Narrower than the ${f16(L.minWidth)} minimum width.`);
 	const tallest = Math.max(...flights.map((f) => f.risers * R));
 	if (tallest > L.maxFlightRise + EPS) warnings.push(`A flight climbs ${f16(tallest)}: over ${f16(L.maxFlightRise)} needs a landing.`);
-	const needLanding = L.landingByWidth ? Math.min(L.minLanding, W) : L.minLanding;
-	if (flightsN > 1 && Array.from({ length: flightsN - 1 }, (_, i) => depthOf(i)).some((d) => d < needLanding - EPS)) warnings.push(`Landings must be at least ${f16(needLanding)} deep.`);
+	lands.forEach((p, i) => {
+		const short = p.depth < need(p.below) - EPS || (p.turn !== 'straight' && p.before < need(p.above) - EPS);
+		if (short) warnings.push(`Landing ${i + 1} must be at least ${f16(Math.min(need(p.below), need(p.above)))} deep${p.turn === 'straight' ? '' : ' each way you walk onto it'}.`);
+	});
 	if (throat < 3.5) warnings.push(`Only ${f16(throat)} of stringer left under the notches: use a deeper stringer.`);
 	else if (throat < 5) hints.push(`${f16(throat)} of stringer under the notches; 5″ or more is better.`);
 	if (comfort < 24 - EPS || comfort > 25.5 + EPS) hints.push(`2 risers + 1 tread = ${f16(comfort)}; 24″ to 25″ walks easiest.`);
@@ -308,17 +568,18 @@ export function stairs(s: StairInput): StairResult {
 		flights,
 		steps,
 		landings: flightsN - 1,
-		spots: flights.slice(0, -1).map((f, i) => {
-			const at = per.slice(0, i + 1).reduce((a, b) => a + b, 0);
-			return { at, depth: depthOf(i), height: f.y1 - fb, framing: f.y1 - tt, x0: f.x1, x1: f.x1 + depthOf(i) };
-		}),
+		spots,
 		custom: !!custom,
+		turns: spots.some((p) => p.turn !== 'straight'),
+		topFloor,
+		bounds,
+		openingPlan,
 		ceiling,
 		opening,
 		openingAt,
 		notch,
 		throat,
-		stringers,
+		stringers: flights[0].stringers,
 		topDrop: R + tt - ftp,
 		treadDepth: T + s.nosing + pos(s.riserThk),
 		riserBoard: Math.max(0, R - tt),
@@ -339,13 +600,20 @@ export interface StairCut {
 export function stairCuts(s: StairInput, r: StairResult, ft: (v: number) => string): StairCut[] {
 	const out: StairCut[] = [];
 	const byStock = new Map<number, number>();
-	for (const f of r.flights) if (f.risers > 1) byStock.set(f.stock, (byStock.get(f.stock) ?? 0) + r.stringers);
+	for (const f of r.flights) if (f.risers > 1) byStock.set(f.stock, (byStock.get(f.stock) ?? 0) + f.stringers);
 	for (const [len, n] of byStock) out.push({ what: 'Stringers', size: `${s.stringer} × ${Math.round(len / 12)}′`, count: n });
-	if (r.treads) out.push({ what: 'Treads', size: `${ft(s.width)} × ${ft(r.treadDepth)} × ${ft(s.treadThk)}`, count: r.treads });
-	if (s.riserThk > 0) out.push({ what: 'Risers', size: `${ft(s.width)} × ${ft(r.riserBoard)} × ${ft(s.riserThk)}`, count: r.risers });
-	const byDepth = new Map<number, number>();
-	for (const p of r.spots) byDepth.set(p.depth, (byDepth.get(p.depth) ?? 0) + 1);
-	for (const [d, n] of byDepth) out.push({ what: 'Landing platforms', size: `${ft(d)} × ${ft(s.width)}`, count: n });
+	const tally = (m: Map<string, number>, k: string, n: number) => n > 0 && m.set(k, (m.get(k) ?? 0) + n);
+	const treads = new Map<string, number>();
+	const risers = new Map<string, number>();
+	for (const f of r.flights) {
+		tally(treads, `${ft(f.width)} × ${ft(r.treadDepth)} × ${ft(s.treadThk)}`, f.treads);
+		tally(risers, `${ft(f.width)} × ${ft(r.riserBoard)} × ${ft(s.riserThk)}`, f.risers);
+	}
+	for (const [k, n] of treads) out.push({ what: 'Treads', size: k, count: n });
+	if (s.riserThk > 0) for (const [k, n] of risers) out.push({ what: 'Risers', size: k, count: n });
+	const lands = new Map<string, number>();
+	for (const p of r.spots) tally(lands, `${ft(p.size[0])} × ${ft(p.size[1])}${p.rects.length > 1 || p.holes.length ? ', shaped' : ''}`, 1);
+	for (const [k, n] of lands) out.push({ what: 'Landing platforms', size: k, count: n });
 	return out;
 }
 

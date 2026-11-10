@@ -10,6 +10,7 @@
 	import ProjectBar from '$lib/components/ProjectBar.svelte';
 	import ResultCard from '$lib/components/ResultCard.svelte';
 	import PlanCard from '$lib/components/PlanCard.svelte';
+	import Workbench from '$lib/components/Workbench.svelte';
 	import WallList from '$lib/components/WallList.svelte';
 	import BlockElevation from '$lib/components/BlockElevation.svelte';
 
@@ -38,96 +39,100 @@
 	<ToolHead title="Block fill grout" />
 	<ProjectBar kind="grout" />
 
-	<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
-		<span>Grout</span><span>{formatNumber(r.netFt3, 1)} cu ft</span>
-		<span>Waste {st.wastePct}%</span><span>{formatNumber(r.wasteFt3, 1)} cu ft</span>
-		{#if st.pumpYd3 > 0}<span>Pump and hose</span><span>{yd(st.pumpYd3)} yd</span>{/if}
-		<span>Total</span><span>{yd(r.totalYd3)} yd</span>
-		{#if r.lintels && st.lintel === 'poured'}<span>Poured lintels ({r.lintels}), concrete</span><span>{formatNumber(r.pouredFt3, 1)} cu ft · {yd(r.pouredFt3 / 27)} yd</span>{/if}
-		{#if r.lintels && st.lintel !== 'poured'}<span>Lintels ({r.lintels}), in the grout</span><span>{formatNumber(r.lintelFt3, 1)} cu ft</span>{/if}
-		{#if r.cells !== null}<span>Cells grouted</span><span>{r.cells}</span>{/if}
-		<span>Blocks (no waste)</span><span>{r.blocks.toLocaleString('en-US')}</span>
-		<span>Wall height</span><span>{ft(st.heightIn)}</span>
-		<span>Wall length</span><span>{ft(totals.lengthIn)} · {st.runs.length} {st.runs.length === 1 ? 'wall' : 'walls'}</span>
-		{#if totals.corners}<span>Corners</span><span>{totals.corners}</span>{/if}
-		{#if totals.openingsSf > 0}<span>Openings</span><span>{formatNumber(totals.openingsSf, 1)} sq ft</span>{/if}
-	</ResultCard>
-
-	<PlanCard material="block" {plan} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => blockScene(plan, st.heightIn, st.spacingIn, st.cellsPerCorner, st.closed, st.lintel, sel?.id ?? -1)} />
-
-	<WallList walls={st} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} openingLabel="Opening">
-		{#snippet elevation(run, move)}
-			{@const k = st.runs.indexOf(run)}
-			{@const w = plan.walls[k]}
-			{#if w && grid[k]}<BlockElevation wall={w} height={st.heightIn} spacingIn={st.spacingIn} grout={grid[k]} poured={st.lintel === 'poured'} onmove={move} range={(id) => moveRange(run, id, st.heightIn)} />{/if}
+	<Workbench id="grout">
+		{#snippet preview()}
+			<PlanCard bare material="block" {plan} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} scene={() => blockScene(plan, st.heightIn, st.spacingIn, st.cellsPerCorner, st.closed, st.lintel, sel?.id ?? -1)} />
 		{/snippet}
-	</WallList>
 
-	<div class="section-title">Wall</div>
-	<div class="fields">
-		<Field label="Wall height" bind:value={st.heightIn} bare="ft" min={8} max={480} note="Laid in 8″ courses" />
-		<div class="quick">
-			{#each HEIGHTS as h (h)}
-				<button class="pill" class:on={st.heightIn === h} onclick={() => (st.heightIn = h)}>{ft(h)} · {h / 8} courses</button>
-			{/each}
-		</div>
-		<span class="mini">Block width</span>
-		<div class="seg">
-			{#each CMU_WIDTHS as w (w)}
-				<button class:on={st.width === w} onclick={() => (st.width = w as CmuWidth)}>{w}″</button>
-			{/each}
-		</div>
-	</div>
+		<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
+			<span>Grout</span><span>{formatNumber(r.netFt3, 1)} cu ft</span>
+			<span>Waste {st.wastePct}%</span><span>{formatNumber(r.wasteFt3, 1)} cu ft</span>
+			{#if st.pumpYd3 > 0}<span>Pump and hose</span><span>{yd(st.pumpYd3)} yd</span>{/if}
+			<span>Total</span><span>{yd(r.totalYd3)} yd</span>
+			{#if r.lintels && st.lintel === 'poured'}<span>Poured lintels ({r.lintels}), concrete</span><span>{formatNumber(r.pouredFt3, 1)} cu ft · {yd(r.pouredFt3 / 27)} yd</span>{/if}
+			{#if r.lintels && st.lintel !== 'poured'}<span>Lintels ({r.lintels}), in the grout</span><span>{formatNumber(r.lintelFt3, 1)} cu ft</span>{/if}
+			{#if r.cells !== null}<span>Cells grouted</span><span>{r.cells}</span>{/if}
+			<span>Blocks (no waste)</span><span>{r.blocks.toLocaleString('en-US')}</span>
+			<span>Wall height</span><span>{ft(st.heightIn)}</span>
+			<span>Wall length</span><span>{ft(totals.lengthIn)} · {st.runs.length} {st.runs.length === 1 ? 'wall' : 'walls'}</span>
+			{#if totals.corners}<span>Corners</span><span>{totals.corners}</span>{/if}
+			{#if totals.openingsSf > 0}<span>Openings</span><span>{formatNumber(totals.openingsSf, 1)} sq ft</span>{/if}
+		</ResultCard>
 
-	<div class="section-title">Lintels over doors and windows</div>
-	<div class="fields">
-		<div class="seg">
-			<button class:on={st.lintel !== 'poured'} onclick={() => (st.lintel = 'grout')}>Lintel block, grouted</button>
-			<button class:on={st.lintel === 'poured'} onclick={() => (st.lintel = 'poured')}>Formed, poured</button>
-		</div>
-		<p class="fine note">
-			{st.lintel === 'poured'
-				? 'Concrete cast in place over each opening: counted on its own (results), with no grout or block there.'
-				: 'U-shaped lintel block filled with grout: part of the grout order.'}
-			8″ deep up to 6′ wide, 16″ wider, bearing 8″ each side.{openings ? '' : ' Add a door or window to a wall to get one.'}
-		</p>
-	</div>
+		<WallList walls={st} height={st.heightIn} selected={sel?.id ?? -1} onselect={(id) => (selectedId = id)} openingLabel="Opening">
+			{#snippet elevation(run, move)}
+				{@const k = st.runs.indexOf(run)}
+				{@const w = plan.walls[k]}
+				{#if w && grid[k]}<BlockElevation wall={w} height={st.heightIn} spacingIn={st.spacingIn} grout={grid[k]} poured={st.lintel === 'poured'} onmove={move} range={(id) => moveRange(run, id, st.heightIn)} />{/if}
+			{/snippet}
+		</WallList>
 
-	<div class="section-title">Grouted cells</div>
-	<div class="seg spacing">
-		{#each SPACINGS as s (s)}
-			<button class:on={st.spacingIn === s} onclick={() => (st.spacingIn = s)}>{s ? `${s}″` : 'Solid'}</button>
-		{/each}
-	</div>
-	<div class="fields gap">
-		{#if solid}
-			<p class="fine note">Every cell filled, except at the doors and windows drawn on the walls.</p>
-		{:else}
-			<Field label="Cells at each corner" kind="number" bind:value={st.cellsPerCorner} integer min={0} max={6} />
+		<div class="section-title">Wall</div>
+		<div class="fields">
+			<Field label="Wall height" bind:value={st.heightIn} bare="ft" min={8} max={480} note="Laid in 8″ courses" />
+			<div class="quick">
+				{#each HEIGHTS as h (h)}
+					<button class="pill" class:on={st.heightIn === h} onclick={() => (st.heightIn = h)}>{ft(h)} · {h / 8} courses</button>
+				{/each}
+			</div>
+			<span class="mini">Block width</span>
+			<div class="seg">
+				{#each CMU_WIDTHS as w (w)}
+					<button class:on={st.width === w} onclick={() => (st.width = w as CmuWidth)}>{w}″</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="section-title">Lintels over doors and windows</div>
+		<div class="fields">
+			<div class="seg">
+				<button class:on={st.lintel !== 'poured'} onclick={() => (st.lintel = 'grout')}>Lintel block, grouted</button>
+				<button class:on={st.lintel === 'poured'} onclick={() => (st.lintel = 'poured')}>Formed, poured</button>
+			</div>
 			<p class="fine note">
-				Always grouted, whatever the spacing: the cell each side of every door and window, and one cell at a free wall end.
+				{st.lintel === 'poured'
+					? 'Concrete cast in place over each opening: counted on its own (results), with no grout or block there.'
+					: 'U-shaped lintel block filled with grout: part of the grout order.'}
+				8″ deep up to 6′ wide, 16″ wider, bearing 8″ each side.{openings ? '' : ' Add a door or window to a wall to get one.'}
 			</p>
-		{/if}
-	</div>
+		</div>
 
-	<div class="section-title">Allowances</div>
-	<div class="fields">
-		<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="The source table includes 3%" />
-		<Field label="Pump and hose" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="0 when bucketed" />
-	</div>
+		<div class="section-title">Grouted cells</div>
+		<div class="seg spacing">
+			{#each SPACINGS as s (s)}
+				<button class:on={st.spacingIn === s} onclick={() => (st.spacingIn = s)}>{s ? `${s}″` : 'Solid'}</button>
+			{/each}
+		</div>
+		<div class="fields gap">
+			{#if solid}
+				<p class="fine note">Every cell filled, except at the doors and windows drawn on the walls.</p>
+			{:else}
+				<Field label="Cells at each corner" kind="number" bind:value={st.cellsPerCorner} integer min={0} max={6} />
+				<p class="fine note">
+					Always grouted, whatever the spacing: the cell each side of every door and window, and one cell at a free wall end.
+				</p>
+			{/if}
+		</div>
 
-	<div class="section-title">Source</div>
-	<div class="card fine source">
-		<p>
-			Grout volumes are based on Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, <i>Estimating Concrete Masonry Materials</i></a>,
-			a technical note published by the Concrete Masonry &amp; Hardscapes Association. It is industry estimating guidance, not a code or standard.
-		</p>
-		<p>
-			The table gives cubic feet of grout per 100 sq ft of wall for hollow two-core block, every cell filled, 3% waste included. A2 Calc takes the net volume
-			per cell from it and counts cells for partial grouting; your waste goes on top. Grouted lintels are counted the same way, cell by cell; poured lintels are concrete, shown on their own. Rebar and bond beams other than lintels are not included.
-		</p>
-		<p>The publisher is named only to cite the source. A2 Calc is not affiliated with, sponsored or endorsed by it.</p>
-	</div>
+		<div class="section-title">Allowances</div>
+		<div class="fields">
+			<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="The source table includes 3%" />
+			<Field label="Pump and hose" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="0 when bucketed" />
+		</div>
+
+		<div class="section-title">Source</div>
+		<div class="card fine source">
+			<p>
+				Grout volumes are based on Table 3 of <a href="https://www.cmha.org/resource/tek-04-02a/" target="_blank" rel="noopener">TEK 4-2A, <i>Estimating Concrete Masonry Materials</i></a>,
+				a technical note published by the Concrete Masonry &amp; Hardscapes Association. It is industry estimating guidance, not a code or standard.
+			</p>
+			<p>
+				The table gives cubic feet of grout per 100 sq ft of wall for hollow two-core block, every cell filled, 3% waste included. A2 Calc takes the net volume
+				per cell from it and counts cells for partial grouting; your waste goes on top. Grouted lintels are counted the same way, cell by cell; poured lintels are concrete, shown on their own. Rebar and bond beams other than lintels are not included.
+			</p>
+			<p>The publisher is named only to cite the source. A2 Calc is not affiliated with, sponsored or endorsed by it.</p>
+		</div>
+	</Workbench>
 </div>
 
 <style>

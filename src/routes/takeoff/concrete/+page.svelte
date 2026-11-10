@@ -10,7 +10,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import ConcretePlan from '$lib/components/ConcretePlan.svelte';
 	import Zoom from '$lib/components/Zoom.svelte';
-	import ViewToggle from '$lib/components/ViewToggle.svelte';
+	import Workbench from '$lib/components/Workbench.svelte';
 	import { concreteScene, MAX_COPIES } from '$lib/takeoff/scene';
 
 	let view = $state<'sketch' | 'plan' | '3d'>('sketch');
@@ -65,67 +65,87 @@
 	<ToolHead title="Concrete" />
 	<ProjectBar kind="concrete" />
 
-	<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
-		<span>Neat volume</span><span>{formatNumber(r.netIn3 / 1728, 1)} cu ft · {yd(r.netYd3)} yd</span>
-		<span>Waste {st.wastePct}%</span><span>{yd(r.wasteYd3)} yd</span>
-		{#if r.pumpYd3 > 0}<span>Pump and line</span><span>{yd(r.pumpYd3)} yd</span>{/if}
-		<span>Total</span><span>{yd(r.totalYd3)} yd</span>
-		{#if r.netYd3 < 1 && r.netIn3 > 0}<span>Or premix (80 lb bags)</span><span>{bags80(r.netIn3 * (1 + st.wastePct / 100))} bags</span>{/if}
-	</ResultCard>
-
-	<ViewToggle title="Pieces" bind:view views={VIEWS} />
-	<div class="tabs">
-		{#each st.pieces as p, i (p.id)}
-			<button class="pill" class:on={i === sel} onclick={() => (st.selected = i)}>
-				{p.count > 1 ? `${p.count}× ` : ''}{PIECE_NAMES[p.kind]}
-			</button>
-		{/each}
-		<button class="pill add" onclick={() => add(piece?.kind ?? 'slab')} aria-label="Add a piece"><Icon name="plus" size={16} /> Add</button>
-	</div>
-
-	{#if piece}
-		<div class="card piece">
-			{#if view === 'sketch'}
-				<ConcreteSketch {piece} />
-			{:else if view === 'plan'}
-				<Zoom><ConcretePlan {piece} /></Zoom>
-			{:else}
-				{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
-					<Scene3D scene={concreteScene(st.pieces, sel)} onpick={(i) => (st.selected = i)} />
-				{/await}
-				<p class="fine hint">
-					Every piece, side by side{st.pieces.some((p) => p.count > MAX_COPIES) ? ` (at most ${MAX_COPIES} of each)` : ''}; this one is tinted; tap a piece to pick it. Drag to turn, pinch to zoom.
-				</p>
-			{/if}
-			<div class="kinds">
-				{#each KINDS as k (k)}
-					<button class="chip" class:on={piece.kind === k} onclick={() => setKind(piece, k)}>{PIECE_NAMES[k]}</button>
+	<Workbench id="concrete">
+		{#snippet preview()}
+			<div class="seg views">
+				{#each VIEWS as [id, label] (id)}
+					<button class:on={view === id} onclick={() => (view = id)}>{label}</button>
 				{/each}
 			</div>
-			<div class="fields">
-				<Field label={PIECE_FIELDS[piece.kind][0]} bind:value={piece.a} bare={bareFor(piece.kind, 0)} min={0} />
-				<Field label={PIECE_FIELDS[piece.kind][1]} bind:value={piece.b} bare={bareFor(piece.kind, 1)} min={0} />
-				{#if PIECE_FIELDS[piece.kind][2]}
-					<Field label={PIECE_FIELDS[piece.kind][2] ?? ''} bind:value={piece.c} bare={bareFor(piece.kind, 2)} min={0} />
+			{#if piece}
+				{#if view === 'sketch'}
+					<ConcreteSketch {piece} />
+				{:else if view === 'plan'}
+					<Zoom><ConcretePlan {piece} /></Zoom>
+				{:else}
+					{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
+						<Scene3D scene={concreteScene(st.pieces, sel)} onpick={(i) => (st.selected = i)} />
+					{/await}
+					<p class="fine hint">
+						Every piece, side by side{st.pieces.some((p) => p.count > MAX_COPIES) ? ` (at most ${MAX_COPIES} of each)` : ''}; this one is tinted; tap a piece to pick it. Drag to turn, pinch to zoom.
+					</p>
 				{/if}
-				<Field label="How many" kind="number" bind:value={piece.count} integer min={1} max={9999} />
-			</div>
-			<div class="piece-foot">
-				<span class="fine num">This piece: {formatNumber(pieceIn3(piece) / 1728, 2)} cu ft · {yd(pieceIn3(piece) / 46656)} yd</span>
-				<button class="btn quiet" onclick={() => remove(sel)}><Icon name="trash" size={18} /> Remove</button>
-			</div>
-		</div>
-	{/if}
+			{/if}
+		{/snippet}
 
-	<div class="section-title">Allowances</div>
-	<div class="fields">
-		<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="Formed 3–5%, on ground 5–10%" />
-		<Field label="Pump and line" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="Ask the pump company; ¼–½ yd typical" />
-	</div>
-	<p class="fine foot">Ordered to the next quarter yard. Volumes are neat dimensions: overdig, sloped subgrade and form bulge add to them.</p>
+		<ResultCard label="Order" value={order(r.orderYd3)} unit="cu yd">
+			<span>Neat volume</span><span>{formatNumber(r.netIn3 / 1728, 1)} cu ft · {yd(r.netYd3)} yd</span>
+			<span>Waste {st.wastePct}%</span><span>{yd(r.wasteYd3)} yd</span>
+			{#if r.pumpYd3 > 0}<span>Pump and line</span><span>{yd(r.pumpYd3)} yd</span>{/if}
+			<span>Total</span><span>{yd(r.totalYd3)} yd</span>
+			{#if r.netYd3 < 1 && r.netIn3 > 0}<span>Or premix (80 lb bags)</span><span>{bags80(r.netIn3 * (1 + st.wastePct / 100))} bags</span>{/if}
+		</ResultCard>
+
+		<div class="section-title">Pieces</div>
+		<div class="tabs">
+			{#each st.pieces as p, i (p.id)}
+				<button class="pill" class:on={i === sel} onclick={() => (st.selected = i)}>
+					{p.count > 1 ? `${p.count}× ` : ''}{PIECE_NAMES[p.kind]}
+				</button>
+			{/each}
+			<button class="pill add" onclick={() => add(piece?.kind ?? 'slab')} aria-label="Add a piece"><Icon name="plus" size={16} /> Add</button>
+		</div>
+
+		{#if piece}
+			<div class="card piece">
+				<div class="kinds">
+					{#each KINDS as k (k)}
+						<button class="chip" class:on={piece.kind === k} onclick={() => setKind(piece, k)}>{PIECE_NAMES[k]}</button>
+					{/each}
+				</div>
+				<div class="fields">
+					<Field label={PIECE_FIELDS[piece.kind][0]} bind:value={piece.a} bare={bareFor(piece.kind, 0)} min={0} />
+					<Field label={PIECE_FIELDS[piece.kind][1]} bind:value={piece.b} bare={bareFor(piece.kind, 1)} min={0} />
+					{#if PIECE_FIELDS[piece.kind][2]}
+						<Field label={PIECE_FIELDS[piece.kind][2] ?? ''} bind:value={piece.c} bare={bareFor(piece.kind, 2)} min={0} />
+					{/if}
+					<Field label="How many" kind="number" bind:value={piece.count} integer min={1} max={9999} />
+				</div>
+				<div class="piece-foot">
+					<span class="fine num">This piece: {formatNumber(pieceIn3(piece) / 1728, 2)} cu ft · {yd(pieceIn3(piece) / 46656)} yd</span>
+					<button class="btn quiet" onclick={() => remove(sel)}><Icon name="trash" size={18} /> Remove</button>
+				</div>
+			</div>
+		{/if}
+
+		<div class="section-title">Allowances</div>
+		<div class="fields">
+			<Field label="Waste" kind="number" bind:value={st.wastePct} suffix="%" min={0} max={50} note="Formed 3–5%, on ground 5–10%" />
+			<Field label="Pump and line" kind="number" bind:value={st.pumpYd3} suffix="yd" min={0} max={5} note="Ask the pump company; ¼–½ yd typical" />
+		</div>
+		<p class="fine foot">Ordered to the next quarter yard. Volumes are neat dimensions: overdig, sloped subgrade and form bulge add to them.</p>
+	</Workbench>
 </div>
 
 <style>
+	.views {
+		align-self: center;
+		width: 14rem;
+	}
+	.views button {
+		padding: 3px 0;
+		font-size: 0.8rem;
+	}
 	.tabs {
 		display: flex;
 		gap: 8px;

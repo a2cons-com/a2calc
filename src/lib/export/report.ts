@@ -9,7 +9,9 @@ import { KIND_NAME } from '$lib/stores/projects.svelte';
 import { bags80, concreteOrder, pieceIn3, PIECE_FIELDS, PIECE_NAMES } from '$lib/takeoff/concrete';
 import { frameWall, type WallInput } from '$lib/takeoff/framing';
 import { groutVolume, wallTotals } from '$lib/takeoff/grout';
-import { stairs, stairCuts, codeNotes, type StairInput } from '$lib/takeoff/stairs';
+import { stairs, stairCuts, codeNotes, TURNS, type StairInput, type Turn } from '$lib/takeoff/stairs';
+
+const turnName = (t: Turn) => TURNS.find(([k]) => k === t)?.[1] ?? '';
 
 export interface Table {
 	title: string;
@@ -172,9 +174,9 @@ function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindNa
 		['Riser height', ft(r.riser)],
 		['Treads', `${r.treads} at ${ft(s.tread)} run`],
 		['Finished rise', `${ft(r.finishedRise)} (rough ${ft(s.rise)})`],
-		['Total run', ft(r.run)],
-		['Landings', r.landings ? r.spots.map((p) => `+${ft(p.height)}`).join(', ') : 'None'],
-		['Floor opening', r.opening > 0 ? `${ft(r.opening)} long` : 'None needed'],
+		...((r.turns ? [['Footprint', `${ft(r.bounds.a1 - r.bounds.a0)} × ${ft(r.bounds.c1 - r.bounds.c0)}`], ['Walking run', ft(r.run)]] : [['Total run', ft(r.run)]]) as [string, string][]),
+		['Landings', r.landings ? r.spots.map((p) => `+${ft(p.height)}${p.turn === 'straight' ? '' : ` (${turnName(p.turn)})`}`).join(', ') : 'None'],
+		['Floor opening', r.openingPlan.size[0] > 0 ? (r.turns ? `${ft(r.openingPlan.size[0])} × ${ft(r.openingPlan.size[1])}` : `${ft(r.opening)} long`) : 'None needed'],
 		['Stringer, first rise', ft(r.flights[0]?.firstRise ?? 0)],
 		['Stringer, top drop', `${ft(r.topDrop)} below the upper subfloor`],
 		['Angle', `${formatNumber(r.angle, 1)}°`]
@@ -191,9 +193,10 @@ function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindNa
 							cols: ['Part', 'Steps', 'Rise / height', 'Run / depth'],
 							numFrom: 2,
 							rows: r.flights.flatMap((f, i) => {
-								const row = [`Flight ${i + 1}`, `${f.risers} risers, ${f.treads} treads`, ft(f.rise), ft(f.run)];
+								const row = [`Flight ${i + 1}`, `${f.risers} risers, ${f.treads} treads, ${ft(f.width)} wide`, ft(f.rise), ft(f.run)];
 								const next = r.flights[i + 1];
-								return next ? [row, [`Landing ${i + 1}`, '', `+${ft(f.y1 - s.finishBottom)}`, ft(next.x0 - f.x1)]] : [row];
+								const p = r.spots[i];
+								return next && p ? [row, [`Landing ${i + 1}`, turnName(p.turn), `+${ft(p.height)}`, `${ft(p.size[0])} × ${ft(p.size[1])}`]] : [row];
 							})
 						}
 					]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stairCuts, stairs, type StairInput } from './stairs';
+import { cells, stairCuts, stairs, type StairInput } from './stairs';
 
 const base: StairInput = {
 	code: 'irc', rise: 108, finishBottom: 0.75, finishTop: 0.75, risers: null, tread: 10.5, nosing: 1,
@@ -64,5 +64,53 @@ describe('stairs', () => {
 	it('keeps hand-placed landings in order and off the floors', () => {
 		const r = stairs({ ...base, spots: [{ at: 40, depth: 36 }, { at: 0, depth: 36 }] });
 		expect(r.spots.map((p) => p.at)).toEqual([1, r.risers - 1]);
+	});
+	it('turns a quarter right at a landing, the next flight against the far side', () => {
+		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 36, turn: 'right' }] });
+		const [a, b] = r.flights;
+		const p = r.spots[0];
+		expect(r.turns).toBe(true);
+		expect(a.d).toEqual([1, 0]);
+		expect(b.d).toEqual([0, 1]);
+		// Landing 36 x 36 off the end of flight 1; flight 2 leaves its far
+		// side heading down the plan, its left edge on the far wall.
+		expect(p.size).toEqual([36, 36]);
+		expect(b.o[0]).toBeCloseTo(a.run + 36, 6);
+		expect(b.o[1]).toBeCloseTo(36, 6);
+		expect(r.bounds.c1).toBeCloseTo(36 + b.run, 6);
+	});
+	it('turns a half turn with a gap, and the flight above may be wider', () => {
+		const input: StairInput = { ...base, rise: 120, spots: [{ at: 8, depth: 40, turn: 'u-left', gap: 4, width: 42 }] };
+		const r = stairs(input);
+		const [a, b] = r.flights;
+		expect(b.d).toEqual([-1, 0]);
+		expect(b.width).toBe(42);
+		expect(r.spots[0].size).toEqual([40, 36 + 4 + 42]);
+		expect(b.o[0]).toBeCloseTo(a.run, 6);
+		expect(b.o[1]).toBeCloseTo(-4, 6);
+		expect(stairCuts(input, r, String).filter((c) => c.what === 'Treads').length).toBe(2);
+	});
+	it('keeps an L landing deep enough for the flight above, and warns when short', () => {
+		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30, turn: 'left', width: 40, before: 30 }] });
+		expect(r.spots[0].depth).toBe(40);
+		expect(r.spots[0].before).toBe(36);
+		const s = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 30 }] });
+		expect(s.warnings.some((w) => w.startsWith('Landing 1'))).toBe(true);
+	});
+	it('cuts a notch out of a landing corner', () => {
+		const r = stairs({ ...base, rise: 120, spots: [{ at: 8, depth: 36, turn: 'right', notch: { corner: 'far-left', along: 6, across: 4.5 } }] });
+		expect(r.spots[0].outline.length).toBe(1);
+		expect(r.spots[0].outline[0].length).toBe(6);
+	});
+	it('outlines rectangles less holes', () => {
+		const { boxes, loops } = cells([{ a0: 0, a1: 10, c0: 0, c1: 10 }], [{ a0: 8, a1: 10, c0: 0, c1: 2 }]);
+		expect(loops.length).toBe(1);
+		expect(loops[0].length).toBe(6);
+		expect(boxes.reduce((s, b) => s + (b.a1 - b.a0) * (b.c1 - b.c0), 0)).toBe(96);
+	});
+	it('opens the floor the same in plan as along the run, for a straight stair', () => {
+		const r = stairs(base);
+		expect(r.openingPlan.size[0]).toBeCloseTo(r.opening, 4);
+		expect(r.openingPlan.size[1]).toBe(36);
 	});
 });

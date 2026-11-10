@@ -82,7 +82,7 @@
 <style>
 	.sketch {
 		width: 100%;
-		height: 180px;
+		height: min(180px, var(--drawing-h, 180px));
 		display: block;
 	}
 	.lbl {

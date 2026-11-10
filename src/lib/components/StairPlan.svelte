@@ -1,58 +1,90 @@
 <script lang="ts">
-	// The stair from above: treads and landings, the floor opening
-	// (dashed), an UP arrow; the run and the width dimensioned.
+	// The stair from above, turns and all: treads and landings (tap one to
+	// pick it), the floor opening (dashed), an arrow up each flight; the
+	// overall length and width dimensioned, each landing's size marked.
 	import { formatFtIn } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
-	import type { StairInput, StairResult } from '$lib/takeoff/stairs';
+	import { rectToPlan, toPlan, type Rect, type StairInput, type StairResult, type V2 } from '$lib/takeoff/stairs';
 
-	let { input, r, selected = -1, onselect }: { input: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void } = $props();
-	const spotAt = (x0: number) => r.spots.findIndex((p) => Math.abs(p.x0 - x0) < 0.01);
+	let { r, selected = -1, onselect }: { input?: StairInput; r: StairResult; selected?: number; onselect?: (i: number) => void } = $props();
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
-	const W = $derived(Math.max(12, input.width));
-	const big = $derived(Math.max(r.run, W, 1));
-	const fs = $derived(Math.max(4, big * 0.045));
+
+	const b = $derived.by(() => {
+		const t = r.topFloor;
+		return { a0: Math.min(r.bounds.a0, t.a0), a1: Math.max(r.bounds.a1, t.a1), c0: Math.min(r.bounds.c0, t.c0), c1: Math.max(r.bounds.c1, t.c1) };
+	});
+	const big = $derived(Math.max(b.a1 - b.a0, b.c1 - b.c0, 1));
+	const fs = $derived(Math.max(4, big * 0.04));
 	const sw = $derived(big / 400);
 	const off = $derived(fs * 1.7);
-	const mid = $derived(W / 2);
+	const sb = $derived(r.bounds);
+
+	const treads = $derived(
+		r.steps.flatMap((s) => {
+			const f = r.flights[s.flight];
+			return s.kind === 'tread' ? [rectToPlan(f.o, f.d, { a0: s.x0 - f.x0, a1: s.x1 - f.x0, c0: 0, c1: f.width })] : [];
+		})
+	);
+	const path = (loops: V2[][]) => loops.map((l) => 'M' + l.map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join('L') + 'Z').join('');
+	const mid = (q: Rect): V2 => [(q.a0 + q.a1) / 2, (q.c0 + q.c1) / 2];
+	/** Middle of a landing's main piece (arriving band). */
+	const landMid = (i: number): V2 => {
+		const p = r.spots[i];
+		return mid(rectToPlan(p.o, p.d, p.rects[0]));
+	};
+	/** An arrow up a flight, down its middle. */
+	const arrow = (i: number) => {
+		const f = r.flights[i];
+		const a = Math.min(4, f.run * 0.1);
+		const z = Math.max(a + 6, f.run - 4);
+		const p = toPlan(f.o, f.d, a, f.width / 2);
+		const q = toPlan(f.o, f.d, z, f.width / 2);
+		const h1 = toPlan(f.o, f.d, z - fs * 0.7, f.width / 2 - fs * 0.5);
+		const h2 = toPlan(f.o, f.d, z - fs * 0.7, f.width / 2 + fs * 0.5);
+		return { p, q, head: `${h1[0]},${h1[1]} ${q[0]},${q[1]} ${h2[0]},${h2[1]}` };
+	};
 </script>
 
 {#snippet tick(x: number, y: number)}
 	<line x1={x - fs * 0.3} y1={y + fs * 0.3} x2={x + fs * 0.3} y2={y - fs * 0.3} class="dl" stroke-width={sw * 2} />
 {/snippet}
 
-<svg viewBox="{-off * 1.6} {-off * 1.8} {r.run + 36 + off * 3} {W + off * 3.4}" role="img" aria-label="Stair plan">
-	{#each r.steps as s, i (i)}
-		{#if s.kind === 'tread'}
-			<rect x={s.x0} y="0" width={s.x1 - s.x0} height={W} class="tread" stroke-width={sw} />
-		{:else if s.kind === 'landing'}
-			{@const li = spotAt(s.x0)}
-			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-			<rect x={s.x0} y="0" width={s.x1 - s.x0} height={W} class="landing" class:sel={selected === li} stroke-width={sw} onclick={() => onselect?.(li)} />
-			<text x={(s.x0 + s.x1) / 2} y={mid + fs * 0.35} font-size={fs * 0.8} class="lbl" text-anchor="middle" pointer-events="none">LANDING {spotAt(s.x0) + 1}</text>
-		{:else}
-			<rect x={s.x0} y="0" width="36" height={W} class="floor" stroke-width={sw} />
+<svg viewBox="{b.a0 - off * 1.8} {b.c0 - off * 1.8} {b.a1 - b.a0 + off * 3} {b.c1 - b.c0 + off * 3.4}" role="img" aria-label="Stair plan">
+	<rect x={r.topFloor.a0} y={r.topFloor.c0} width={r.topFloor.a1 - r.topFloor.a0} height={r.topFloor.c1 - r.topFloor.c0} class="floor" stroke-width={sw} />
+	{#each treads as q, i (i)}
+		<rect x={q.a0} y={q.c0} width={q.a1 - q.a0} height={q.c1 - q.c0} class="tread" stroke-width={sw} />
+	{/each}
+	{#each r.spots as p, i (i)}
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<path d={path(p.outline)} class="landing" class:sel={selected === i} stroke-width={sw} onclick={() => onselect?.(i)} />
+		{@const m = landMid(i)}
+		<text x={m[0]} y={m[1] - fs * 0.15} font-size={fs * 0.75} class="lbl" text-anchor="middle" pointer-events="none">LANDING {i + 1}</text>
+		<text x={m[0]} y={m[1] + fs * 0.8} font-size={fs * 0.65} class="sub" text-anchor="middle" pointer-events="none">{ft(p.size[0])} × {ft(p.size[1])}</text>
+	{/each}
+	{#if r.openingPlan.loops.length}
+		<path d={path(r.openingPlan.loops)} class="open" stroke-width={sw * 1.4} stroke-dasharray="{fs * 0.6} {fs * 0.4}" fill="none" />
+	{/if}
+	{#each r.flights as f, i (i)}
+		{#if f.run > 8}
+			{@const a = arrow(i)}
+			<line x1={a.p[0]} y1={a.p[1]} x2={a.q[0]} y2={a.q[1]} class="arrow" stroke-width={sw * 2} />
+			<polyline points={a.head} class="arrow" stroke-width={sw * 2} fill="none" />
+			{#if i === 0}
+				<text x={a.p[0]} y={a.p[1] - fs * 0.5} font-size={fs * 0.85} class="lbl">UP</text>
+			{/if}
 		{/if}
 	{/each}
-	{#if r.opening > 0}
-		<rect x={r.openingAt} y={-fs * 0.4} width={r.opening} height={W + fs * 0.8} class="open" stroke-width={sw * 1.4} stroke-dasharray="{fs * 0.6} {fs * 0.4}" fill="none" />
-	{/if}
-	<!-- UP arrow along the first flight -->
-	{#if r.flights[0]}
-		{@const a = Math.max(r.flights[0].x0 + 4, 4)}
-		{@const b = Math.max(a + 10, r.flights[0].x1 - 6)}
-		<line x1={a} x2={b} y1={mid} y2={mid} class="arrow" stroke-width={sw * 2} />
-		<polyline points="{b - fs * 0.7},{mid - fs * 0.5} {b},{mid} {b - fs * 0.7},{mid + fs * 0.5}" class="arrow" stroke-width={sw * 2} fill="none" />
-		<text x={a} y={mid - fs * 0.5} font-size={fs * 0.85} class="lbl">UP</text>
-	{/if}
-	<!-- run along the top, width down the left -->
-	<line x1="0" x2={r.run} y1={-off} y2={-off} class="dl" stroke-width={sw} />
-	{@render tick(0, -off)}{@render tick(r.run, -off)}
-	<text x={r.run / 2} y={-off - fs * 0.45} font-size={fs} class="dt" text-anchor="middle">{ft(r.run)}</text>
-	<line x1={-off} x2={-off} y1="0" y2={W} class="dl" stroke-width={sw} />
-	{@render tick(-off, 0)}{@render tick(-off, W)}
-	<text x={-off - fs * 0.5} y={mid} font-size={fs} class="dt" text-anchor="middle" transform="rotate(-90 {-off - fs * 0.5} {mid})">{ft(W)}</text>
-	{#if r.opening > 0}
-		<text x={r.openingAt + r.opening / 2} y={W + fs * 1.6} font-size={fs * 0.8} class="ot" text-anchor="middle">Opening {ft(r.opening)}</text>
+	<!-- overall length along the top, width down the left -->
+	<line x1={sb.a0} x2={sb.a1} y1={b.c0 - off} y2={b.c0 - off} class="dl" stroke-width={sw} />
+	{@render tick(sb.a0, b.c0 - off)}{@render tick(sb.a1, b.c0 - off)}
+	<text x={(sb.a0 + sb.a1) / 2} y={b.c0 - off - fs * 0.45} font-size={fs} class="dt" text-anchor="middle">{ft(sb.a1 - sb.a0)}</text>
+	<line x1={b.a0 - off} x2={b.a0 - off} y1={sb.c0} y2={sb.c1} class="dl" stroke-width={sw} />
+	{@render tick(b.a0 - off, sb.c0)}{@render tick(b.a0 - off, sb.c1)}
+	<text x={b.a0 - off - fs * 0.5} y={(sb.c0 + sb.c1) / 2} font-size={fs} class="dt" text-anchor="middle" transform="rotate(-90 {b.a0 - off - fs * 0.5} {(sb.c0 + sb.c1) / 2})">{ft(sb.c1 - sb.c0)}</text>
+	{#if r.openingPlan.size[0] > 0}
+		<text x={(b.a0 + b.a1) / 2} y={b.c1 + fs * 1.6} font-size={fs * 0.8} class="ot" text-anchor="middle">
+			Opening {r.turns ? `${ft(r.openingPlan.size[0])} × ${ft(r.openingPlan.size[1])}` : ft(r.opening)}
+		</text>
 	{/if}
 </svg>
 
@@ -60,7 +92,7 @@
 	svg {
 		width: 100%;
 		display: block;
-		max-height: 260px;
+		max-height: var(--drawing-h, 300px);
 	}
 	.tread {
 		fill: var(--wood);
@@ -95,6 +127,11 @@
 		font-family: var(--font-num);
 		font-weight: 700;
 		fill: var(--text);
+	}
+	.sub {
+		font-family: var(--font-num);
+		font-weight: 600;
+		fill: var(--muted);
 	}
 	.dl {
 		stroke: var(--primary-text);

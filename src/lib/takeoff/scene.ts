@@ -10,7 +10,7 @@ import type { Opening, Role, RunFraming } from './framing';
 import { COURSE_IN, UNIT_IN, wallsGrout, type LintelKind } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
-import type { StairInput, StairResult } from './stairs';
+import { cells, rectToPlan, toPlan, type Rect, type StairInput, type StairResult, type V2 } from './stairs';
 
 export interface Solid {
 	/** Center. */
@@ -176,8 +176,8 @@ export function concreteScene(pieces: Piece[], selected: number): Scene {
 	return { solids, mats };
 }
 
-/** A stair along x (width along z): floors, the upper floor seen through,
- *  stringers, treads and risers, landings (their surface only). */
+/** A stair, turns and all: floors (the upper one seen through, with its
+ *  opening), stringers, treads and risers, landings (their surface only). */
 export function stairScene(input: StairInput, r: StairResult): Scene {
 	const solids: Solid[] = [];
 	const mats: Record<string, Mat> = {
@@ -187,57 +187,67 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 		tread: { color: '--wood-header', edges: true },
 		riser: { color: '--plate', edges: true }
 	};
-	const W = Math.max(12, input.width);
 	const T = Math.max(1, input.tread);
 	const tt = Math.max(0, input.treadThk);
 	const rt = Math.max(0, input.riserThk);
 	const nose = Math.max(0, input.nosing);
 	const fd = Math.max(1, input.floorDepth);
 	const rise = Math.max(1, input.rise);
-	const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, mat: string): Solid => ({
-		c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2],
-		s: [Math.max(0.1, x1 - x0), Math.max(0.1, y1 - y0), Math.max(0.1, z1 - z0)],
-		ry: 0,
-		mat
-	});
-	const before = 36;
-	const after = Math.max(36, input.landingDepth);
-	solids.push(box(-before, r.run + after, -4, 0, -12, W + 12, 'slab'));
-	if (r.openingAt > -before) solids.push(box(-before, r.openingAt, rise - fd, rise, -12, W + 12, 'floor'));
-	solids.push(box(r.run, r.run + after, rise - fd, rise, -12, W + 12, 'floor'));
+	/** A box in a frame: along a0..a1 from o heading d, across c0..c1 to
+	 *  the right, y0..y1 up; tilted by rz about its across axis. */
+	const box = (o: V2, d: V2, a0: number, a1: number, y0: number, y1: number, c0: number, c1: number, mat: string, rz = 0): Solid => {
+		const p = toPlan(o, d, (a0 + a1) / 2, (c0 + c1) / 2);
+		return { c: [p[0], (y0 + y1) / 2, p[1]], s: [Math.max(0.1, a1 - a0), Math.max(0.1, y1 - y0), Math.max(0.1, c1 - c0)], ry: Math.atan2(-d[1], d[0]), rz: rz || undefined, mat };
+	};
+	const flat = (q: Rect, y0: number, y1: number, mat: string) => box([0, 0], [1, 0], q.a0, q.a1, y0, y1, q.c0, q.c1, mat);
 
-	// Stringers, spread across the width.
-	const zs = Array.from({ length: r.stringers }, (_, i) => 0.75 + ((W - 1.5) * i) / Math.max(1, r.stringers - 1));
+	// Floors: the slab under it all, the upper floor around the opening.
+	const f0 = r.flights[0];
+	const pad = (q: Rect, m: number): Rect => ({ a0: q.a0 - m, a1: q.a1 + m, c0: q.c0 - m, c1: q.c1 + m });
+	const all = [r.bounds, r.topFloor, rectToPlan(f0.o, f0.d, { a0: -36, a1: 0, c0: 0, c1: f0.width })];
+	const out: Rect = { a0: Math.min(...all.map((q) => q.a0)), a1: Math.max(...all.map((q) => q.a1)), c0: Math.min(...all.map((q) => q.c0)), c1: Math.max(...all.map((q) => q.c1)) };
+	solids.push(flat(pad(out, 12), -4, 0, 'slab'));
+	for (const q of cells([pad(out, 12)], r.openingPlan.boxes).boxes) solids.push(flat(q, rise - fd, rise, 'floor'));
+
 	const R = r.riser;
 	const th = Math.atan2(R, T);
 	const drop = Math.max(0.5, r.throat);
 	for (const f of r.flights) {
 		if (f.risers < 2) continue;
+		// Stringers, spread across the flight; along runs from its first riser.
+		const zs = Array.from({ length: f.stringers }, (_, i) => 0.75 + ((f.width - 1.5) * i) / Math.max(1, f.stringers - 1));
 		const c1 = f.seat + f.firstRise;
-		const inner = (x: number) => c1 + (x - (f.x0 + T)) * (R / T);
-		const xa = f.x0;
-		const xb = f.x1;
-		const len = (xb - xa) / Math.cos(th);
-		const xm = (xa + xb) / 2;
-		const ym = inner(xm);
+		const inner = (a: number) => c1 + (a - T) * (R / T);
+		const len = f.run / Math.cos(th);
+		const am = f.run / 2;
+		const ym = inner(am);
+		const ac = am + (Math.sin(th) * drop) / 2;
+		const yc = ym - (Math.cos(th) * drop) / 2;
 		for (const z of zs) {
-			solids.push({ c: [xm + (Math.sin(th) * drop) / 2, ym - (Math.cos(th) * drop) / 2, z], s: [len, drop, 1.5], ry: 0, rz: th, mat: 'stringer' });
+			solids.push(box(f.o, f.d, ac - len / 2, ac + len / 2, yc - drop / 2, yc + drop / 2, z - 0.75, z + 0.75, 'stringer', th));
 			// The teeth under each tread.
 			for (let k = 1; k < f.risers; k++) {
-				const x0 = f.x0 + (k - 1) * T;
+				const a0 = (k - 1) * T;
 				const c = c1 + (k - 1) * R;
-				solids.push(box(x0, x0 + T, c - R, c, z - 0.75, z + 0.75, 'stringer'));
+				solids.push(box(f.o, f.d, a0, a0 + T, c - R, c, z - 0.75, z + 0.75, 'stringer'));
 			}
 		}
 	}
 	for (const s of r.steps) {
-		if (s.kind === 'tread') solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
+		const f = r.flights[s.flight];
+		const a0 = s.x0 - f.x0;
+		if (s.kind === 'tread') solids.push(box(f.o, f.d, a0 - rt - nose, s.x1 - f.x0, s.y - tt, s.y, 0, f.width, 'tread'));
 		if (s.kind === 'landing') {
 			// Just the landing surface: how it's held up is the framer's call.
-			solids.push(box(s.x0 - rt - nose, s.x1, s.y - tt, s.y, 0, W, 'tread'));
+			const p = r.spots.find((q) => Math.abs(q.x0 - s.x0) < 1e-6);
+			if (p) {
+				solids.push(box(f.o, f.d, a0 - rt - nose, a0, s.y - tt, s.y, 0, f.width, 'tread'));
+				const shape = cells(p.rects.map((q) => rectToPlan(p.o, p.d, q)), p.holes.map((q) => rectToPlan(p.o, p.d, q)));
+				for (const q of shape.boxes) solids.push(flat(q, s.y - tt, s.y, 'tread'));
+			}
 		}
 		const top = s.y - (s.kind === 'top' ? Math.max(0, input.finishTop) : tt);
-		solids.push(box(s.x0 - rt, s.x0, top - r.riserBoard, top, 0, W, 'riser'));
+		solids.push(box(f.o, f.d, a0 - rt, a0, top - r.riserBoard, top, 0, f.width, 'riser'));
 	}
 	return { solids, mats };
 }

@@ -69,7 +69,7 @@
 <style>
 	svg {
 		width: 100%;
-		max-height: 260px;
+		max-height: var(--drawing-h, 260px);
 		display: block;
 	}
 	.body {

@@ -15,7 +15,8 @@
 		selected,
 		onselect,
 		scene,
-		material = 'wood'
+		material = 'wood',
+		bare = false
 	}: {
 		plan: Plan;
 		height: number;
@@ -24,14 +25,23 @@
 		/** Built only while the 3D view shows. */
 		scene: () => Scene;
 		material?: 'wood' | 'block';
+		/** Inside a Workbench preview: no card or title of its own. */
+		bare?: boolean;
 	} = $props();
 
 	let view = $state<'plan' | '3d'>('plan');
 	const walls = $derived(plan.walls.length);
 </script>
 
-<ViewToggle title="Plan" bind:view />
-<div class="card plan">
+{#if bare}
+	<div class="seg views">
+		<button class:on={view === 'plan'} onclick={() => (view = 'plan')}>Plan</button>
+		<button class:on={view === '3d'} onclick={() => (view = '3d')}>3D</button>
+	</div>
+{:else}
+	<ViewToggle title="Plan" bind:view />
+{/if}
+<div class="plan" class:card={!bare} class:bare>
 	{#if view === 'plan'}
 		<Zoom><FloorPlan {plan} {height} {selected} {onselect} {material} /></Zoom>
 		<p class="fine hint">
@@ -52,8 +62,21 @@
 		gap: 8px;
 		padding: 10px;
 	}
+	.plan.bare {
+		padding: 0;
+		gap: 6px;
+	}
 	.hint {
 		margin: -4px 0 0;
 		text-align: center;
+	}
+	.views {
+		align-self: center;
+		width: 10rem;
+		margin: 0 auto 6px;
+	}
+	.views button {
+		padding: 3px 0;
+		font-size: 0.8rem;
 	}
 </style>
