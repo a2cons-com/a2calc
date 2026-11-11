@@ -28,6 +28,24 @@
 		['plan', 'Plan'],
 		['3d', '3D']
 	];
+	/** The section strip of a turned stair: which run is in view, and going to one. */
+	let strip = $state<HTMLDivElement>();
+	let runAt = $state(0);
+	const runs = $derived(stairRuns(r));
+	function onStrip() {
+		const kids = strip ? ([...strip.children] as HTMLElement[]) : [];
+		const mid = strip ? strip.scrollLeft + strip.clientWidth / 2 : 0;
+		let best = 0;
+		kids.forEach((k, i) => {
+			if (Math.abs(k.offsetLeft + k.offsetWidth / 2 - mid) < Math.abs(kids[best].offsetLeft + kids[best].offsetWidth / 2 - mid)) best = i;
+		});
+		runAt = best;
+	}
+	function toRun(k: number) {
+		const el = strip?.children[Math.max(0, Math.min(runs.length - 1, k))] as HTMLElement | undefined;
+		if (!strip || !el) return;
+		strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
+	}
 	const CODE_IDS = Object.keys(CODES) as StairCode[];
 	const SIZES: StringerSize[] = ['2x12', '2x10'];
 	const CORNERS: [NotchCorner, string][] = [
@@ -149,10 +167,15 @@
 			{#if view === 'section'}
 				{#if r.turns}
 					<!-- One section per straight run: swipe across them. -->
-					<div class="runs">
-						{#each stairRuns(r) as part, k (k)}
+					{@const at = Math.min(runAt, runs.length - 1)}
+					<div class="pager">
+						<button onclick={() => toRun(at - 1)} disabled={at === 0} aria-label="Previous run">‹</button>
+						<span class="mini">Run {at + 1} of {runs.length} · {runs[at][0] === runs[at][1] ? `flight ${runs[at][0] + 1}` : `flights ${runs[at][0] + 1}–${runs[at][1] + 1}`}</span>
+						<button onclick={() => toRun(at + 1)} disabled={at === runs.length - 1} aria-label="Next run">›</button>
+					</div>
+					<div class="runs" bind:this={strip} onscroll={onStrip}>
+						{#each runs as part, k (k)}
 							<div class="run">
-								<span class="mini">Run {k + 1} · {part[0] === part[1] ? `flight ${part[0] + 1}` : `flights ${part[0] + 1}–${part[1] + 1}`}</span>
 								<Zoom><StairSection input={st} {r} {part} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
 							</div>
 						{/each}
@@ -160,7 +183,7 @@
 				{:else}
 					<Zoom><StairSection input={st} {r} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
 				{/if}
-				<p class="fine hint">{r.turns ? 'Each straight run cut down its middle; swipe across.' : 'Cut down the middle.'} Dashed: the nosing line and the headroom above it.</p>
+				<p class="fine hint">{r.turns ? 'Each straight run cut down its middle; swipe or use the arrows.' : 'Cut down the middle.'} Dashed: the nosing line and the headroom above it.</p>
 			{:else if view === 'plan'}
 				<Zoom><StairPlan {r} selected={r.landings ? sl : -1} onselect={pick} /></Zoom>
 				<p class="fine hint">From above; tap a landing to set it up. Dashed: the opening in the upper floor.</p>
@@ -442,8 +465,30 @@
 		flex-direction: column;
 		gap: 2px;
 	}
-	.run .mini {
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+	}
+	.pager button {
+		min-width: 34px;
+		font-size: 1.3rem;
+		line-height: 1;
+		padding: 0 6px 2px;
+		border-radius: 8px;
+		color: var(--primary-text);
+	}
+	.pager button:disabled {
+		color: var(--faint);
+		cursor: default;
+	}
+	.pager .mini {
 		text-align: center;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.pickf {
 		display: flex;

@@ -35,7 +35,22 @@
 		return { x: e.clientX - r.left, y: e.clientY - r.top };
 	};
 
+	/** Fingers down anywhere on the page (a small drawing is easy to miss
+	 * with one finger of a pinch): when did each land and where. */
+	const touches = new Map<number, { t: number; e: PointerEvent }>();
+	function adopt(e: PointerEvent) {
+		pts.set(e.pointerId, local(e));
+		try {
+			box.setPointerCapture(e.pointerId);
+		} catch {
+			/* already up */
+		}
+	}
 	function down(e: PointerEvent) {
+		// The other finger of a pinch that landed just outside a moment ago.
+		if (!pts.size && e.pointerType === 'touch') {
+			for (const [id, o] of touches) if (id !== e.pointerId && performance.now() - o.t < 400) adopt(o.e);
+		}
 		pts.set(e.pointerId, local(e));
 		moved = false;
 		if (pts.size === 2) {
@@ -76,6 +91,11 @@
 		pts.delete(e.pointerId);
 		if (pts.size < 2) pinch = null;
 		if (!pts.size) pan = null;
+		// A cancel is the browser taking the touch to scroll: not a tap.
+		if (e.type === 'pointercancel') {
+			lastTap = 0;
+			return;
+		}
 		if (e.pointerType === 'touch' && !moved) {
 			const now = performance.now();
 			if (now - lastTap < 300) {
@@ -111,9 +131,55 @@
 		else zoomAt(2.5, p.x, p.y);
 	}
 
+	// Safari hands a two-finger gesture to the page (scroll, or its own
+	// zoom, which ignores user-scalable=no) and cancels the pointers unless
+	// the touches themselves are held: hold them once two fingers are down,
+	// or one finger while zoomed (that one moves the drawing).
+	function hold(e: TouchEvent) {
+		if (e.touches.length >= 2 || s > 1.01) e.preventDefault();
+	}
+	const stop = (e: Event) => e.preventDefault();
+	// The page-wide side: remember fingers; one landing off the drawing while
+	// another is on it joins the pinch; while pinching, nothing else scrolls.
+	function anyDown(e: PointerEvent) {
+		if (e.pointerType !== 'touch') return;
+		touches.set(e.pointerId, { t: performance.now(), e });
+		if (pts.size === 1 && !pts.has(e.pointerId) && !box.contains(e.target as Node)) {
+			down(e);
+			box.setPointerCapture(e.pointerId);
+		}
+	}
+	function anyUp(e: PointerEvent) {
+		touches.delete(e.pointerId);
+	}
+	function anyHold(e: TouchEvent) {
+		if (pinch) e.preventDefault();
+	}
+	$effect(() => {
+		window.addEventListener('pointerdown', anyDown, true);
+		window.addEventListener('pointerup', anyUp, true);
+		window.addEventListener('pointercancel', anyUp, true);
+		window.addEventListener('touchmove', anyHold, { passive: false });
+		return () => {
+			window.removeEventListener('pointerdown', anyDown, true);
+			window.removeEventListener('pointerup', anyUp, true);
+			window.removeEventListener('pointercancel', anyUp, true);
+			window.removeEventListener('touchmove', anyHold);
+		};
+	});
 	$effect(() => {
 		box.addEventListener('wheel', wheel, { passive: false });
-		return () => box.removeEventListener('wheel', wheel);
+		box.addEventListener('touchstart', hold, { passive: false });
+		box.addEventListener('touchmove', hold, { passive: false });
+		box.addEventListener('gesturestart', stop);
+		box.addEventListener('gesturechange', stop);
+		return () => {
+			box.removeEventListener('wheel', wheel);
+			box.removeEventListener('touchstart', hold);
+			box.removeEventListener('touchmove', hold);
+			box.removeEventListener('gesturestart', stop);
+			box.removeEventListener('gesturechange', stop);
+		};
 	});
 </script>
 
@@ -139,8 +205,9 @@
 	.zoom {
 		position: relative;
 		overflow: hidden;
-		/* One finger scrolls the page until zoomed; two always zoom. */
-		touch-action: pan-y;
+		/* One finger scrolls what is around it (the page, or a strip of
+		   drawings sideways) until zoomed; two always zoom. */
+		touch-action: pan-x pan-y;
 	}
 	.zoom.zoomed {
 		touch-action: none;
