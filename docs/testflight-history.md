@@ -423,3 +423,19 @@ What to check
 
 - Lay out an L and a U stair you know and compare the landing sizes and heights
 - Move and resize the small drawing on a phone; try Large and Hide
+
+## 0.2.14 (147), 2026-11-10
+
+Swiping between stair sections and pinching a drawing now work on the phone.
+
+What changed
+
+- On a turned stair, swipe sideways right on the drawing to go to the next run, or use the new ‹ › arrows over it.
+- Pinch to zoom holds on iPhone: the page no longer scrolls or zooms instead.
+- Two quick swipes no longer zoom the drawing in by accident.
+- In the small floating drawing, a pinch works even if one finger lands just outside it.
+
+What to check
+
+- Stairs with a turn: swipe between the runs both ways, in Small and Large; try the arrows.
+- Pinch in and out on the section, plan and stringer, then tap 1:1 or double-tap to go back.
