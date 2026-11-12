@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { formatFtIn, formatNumber } from '$lib/calc/units';
 	import { floor as st, newId, prefs } from '$lib/stores/app.svelte';
-	import { bestFit, flooring, floorSides, OFFSETS, PATTERNS, wallsBy, type LineKind, type LineRef, type PatternId } from '$lib/takeoff/flooring';
+	import { bestFit, cutAt, cutOffWall, defaultCuts, flooring, floorSection, floorSides, OFFSETS, PATTERNS, wallsBy, type FloorCut, type LineKind, type LineRef, type PatternId } from '$lib/takeoff/flooring';
+	import { floorScene } from '$lib/takeoff/scene';
 	import Field from '$lib/components/Field.svelte';
 	import ToolHead from '$lib/components/ToolHead.svelte';
 	import ProjectBar from '$lib/components/ProjectBar.svelte';
@@ -9,6 +10,7 @@
 	import Workbench from '$lib/components/Workbench.svelte';
 	import Zoom from '$lib/components/Zoom.svelte';
 	import FloorLayout from '$lib/components/FloorLayout.svelte';
+	import FloorSection from '$lib/components/FloorSection.svelte';
 
 	const r = $derived(flooring(st));
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
@@ -53,6 +55,68 @@
 		if (tab !== 'room' && tab !== 'layout') show('room');
 	}
 
+	// Views: the plan with its section marks, a section, 3D.
+	type View = 'plan' | 'section' | '3d';
+	const VIEWS: [View, string][] = [
+		['plan', 'Plan'],
+		['section', 'Section'],
+		['3d', '3D']
+	];
+	let view = $state<View>('plan');
+	try {
+		const v = localStorage.getItem('a2calc:view:floor');
+		if (VIEWS.some(([t]) => t === v)) view = v as View;
+	} catch {
+		/* start on the plan */
+	}
+	function see(v: View) {
+		view = v;
+		try {
+			localStorage.setItem('a2calc:view:floor', v);
+		} catch {
+			/* not kept */
+		}
+	}
+	const scene3 = $derived(view === '3d' ? floorScene(st, r) : null);
+
+	// Sections
+	let csel = $state(0);
+	const ci = $derived(Math.max(0, Math.min(csel, st.cuts.length - 1)));
+	const rowDeg = $derived.by(() => {
+		const u = r.walls[Math.min(st.along, r.walls.length - 1)]?.d ?? [1, 0];
+		return Math.round((Math.atan2(u[1], u[0]) * 180) / Math.PI);
+	});
+	const norm = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180;
+	/** A cut's angle to the rows, 0..180. */
+	const rel = (c: FloorCut) => ((((c.deg - rowDeg) % 180) + 180) % 180);
+	function moveCut(i: number, c: Pick<FloorCut, 'p' | 'deg'>) {
+		st.cuts[i].p = c.p;
+		st.cuts[i].deg = c.deg;
+		csel = i;
+	}
+	function pickCut(i: number, open: boolean) {
+		csel = i;
+		if (open) see('section');
+	}
+	function turnCut(i: number, deg: number) {
+		const c = st.cuts[i];
+		const sec = floorSection(r, c);
+		st.cuts[i] = { ...c, p: sec.ok ? sec.mid : c.p, deg: norm(deg) };
+	}
+	function addCut() {
+		const [across, along] = defaultCuts(r, st.along, [newId(), newId()]);
+		st.cuts.push(st.cuts.length % 2 ? along : across);
+		csel = st.cuts.length - 1;
+	}
+	function removeCut(i: number) {
+		st.cuts.splice(i, 1);
+		csel = Math.max(0, i - 1);
+	}
+	function resetCuts() {
+		st.cuts = defaultCuts(flooring(st), st.along, [newId(), newId()]);
+		csel = 0;
+	}
+
 	// Room
 	function setShape(rect: boolean) {
 		if (rect === st.rect) return;
@@ -65,6 +129,7 @@
 		}
 		st.rect = rect;
 		wsel = 0;
+		resetCuts();
 	}
 	function lShape() {
 		const a = st.sides[0]?.length ?? 144;
@@ -74,6 +139,7 @@
 		st.sides = L.map((length, i) => ({ id: newId(), length: Math.round(length), turn: T[i], doors: [] }));
 		st.rect = false;
 		fixRefs();
+		resetCuts();
 	}
 	function addWall() {
 		st.sides.splice(wi + 1, 0, { id: newId(), length: 48, turn: 'right', doors: [] });
@@ -182,8 +248,33 @@
 
 	<Workbench id="flooring">
 		{#snippet preview()}
-			<Zoom><FloorLayout {r} input={st} selected={wi} onselect={pickWall} /></Zoom>
-			<p class="fine hint">Tap a wall to edit it. Red: slivers. A and B: the chalk lines the layout starts from.</p>
+			<div class="seg views">
+				{#each VIEWS as [id, label] (id)}
+					<button class:on={view === id} onclick={() => see(id)}>{label}</button>
+				{/each}
+			</div>
+			{#if view === 'plan'}
+				<Zoom><FloorLayout {r} input={st} selected={wi} onselect={pickWall} cuts={st.cuts} cutSel={ci} oncut={moveCut} oncutpick={pickCut} /></Zoom>
+				<p class="fine hint">Tap a wall to edit it. A and B: the chalk lines. 1, 2…: sections; drag the line to slide one, its end to turn it, tap the end to see it. Red: slivers.</p>
+			{:else if view === 'section'}
+				{#if st.cuts.length}
+					<div class="pager">
+						<button onclick={() => (csel = ci - 1)} disabled={ci === 0} aria-label="Previous section">‹</button>
+						<span class="mini">Section {ci + 1} of {st.cuts.length}</span>
+						<button onclick={() => (csel = ci + 1)} disabled={ci === st.cuts.length - 1} aria-label="Next section">›</button>
+					</div>
+					<Zoom><FloorSection {r} input={st} cut={st.cuts[ci]} num={ci + 1} /></Zoom>
+					<p class="fine hint">Cut {ci + 1} on the plan, looking the way its arrows point. Top: wall to wall, heights stretched; below: both ends at true size.</p>
+				{:else}
+					<p class="fine hint">No sections yet.</p>
+					<div class="pills center"><button class="pill" onclick={addCut}>+ Section</button></div>
+				{/if}
+			{:else if scene3}
+				{#await import('$lib/components/Scene3D.svelte') then { default: Scene3D }}
+					<Scene3D scene={scene3} />
+				{/await}
+				<p class="fine hint">Walls cut low to see in. Drag to turn, pinch to zoom.</p>
+			{/if}
 		{/snippet}
 
 		<ResultCard label="Floor" value={sqft(r.area)} unit="sq ft">
@@ -327,6 +418,37 @@
 				{#if fitMsg}<p class="fine">{fitMsg}</p>{/if}
 			</div>
 
+			<div class="section-title">Sections</div>
+			<div class="fields">
+				{#each st.cuts as c, i (c.id)}
+					{@const ow = cutOffWall(r, c)}
+					{@const a = rel(c)}
+					<div class="line card" class:sel={ci === i}>
+						<span class="lname"><b>{i + 1}</b> {a === 90 ? 'across the rows' : a === 0 ? 'along the rows' : `${a}° to the rows`}{floorSection(r, c).ok ? '' : ' · misses the room'}</span>
+						<div class="seg kinds">
+							<button class:on={a === 90} onclick={() => turnCut(i, rowDeg + 90)}>Across</button>
+							<button class:on={a === 0} onclick={() => turnCut(i, rowDeg)}>Along</button>
+							<button class:on={a === 45} onclick={() => turnCut(i, rowDeg + 45)}>45°</button>
+						</div>
+						<div class="two">
+							{#if ow}
+								<Field label="Off wall {ow.side + 1}" value={ow.dist} min={0} max={2400} note="Wall face to the cut" onchange={(v) => (st.cuts[i].p = cutAt(r, c, ow.side, v))} />
+							{/if}
+							<Field label="Angle" kind="number" value={c.deg} suffix="°" min={-180} max={180} onchange={(v) => turnCut(i, v)} />
+						</div>
+						<div class="pills">
+							<button class="pill" onclick={() => (st.cuts[i].flip = !c.flip)}>⇅ Look the other way</button>
+							<button class="pill" onclick={() => pickCut(i, true)}>See it</button>
+							<button class="pill rm" onclick={() => removeCut(i)}>Remove</button>
+						</div>
+					</div>
+				{/each}
+				<div class="pills">
+					<button class="pill" onclick={addCut}>+ Section</button>
+					<button class="pill" onclick={resetCuts}>Reset to the middle</button>
+				</div>
+			</div>
+
 			<div class="section-title">Cuts at the walls</div>
 			<div class="card table">
 				{#each r.wallCuts as c, i (i)}
@@ -393,6 +515,38 @@
 	}
 	.tabs {
 		margin: 14px 0 10px;
+	}
+	.views {
+		align-self: center;
+		width: 15rem;
+	}
+	.views button {
+		padding: 3px 0;
+		font-size: 0.8rem;
+	}
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+	}
+	.pager button {
+		min-width: 34px;
+		font-size: 1.3rem;
+		line-height: 1;
+		padding: 0 6px 2px;
+		border-radius: 8px;
+		color: var(--primary-text);
+	}
+	.pager button:disabled {
+		color: var(--faint);
+		cursor: default;
+	}
+	.line.sel {
+		border-color: var(--primary);
+	}
+	.pills.center {
+		justify-content: center;
 	}
 	.tabs button {
 		font-size: 0.8rem;

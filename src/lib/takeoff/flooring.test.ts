@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestFit, flooring, PATTERNS, type FloorInput, type FloorSide } from './flooring';
+import { bestFit, cutAt, cutOffWall, flooring, floorSection, PATTERNS, type FloorInput, type FloorSide } from './flooring';
 
 const box = (L: number, W: number): FloorSide[] => [
 	{ id: 1, length: L, turn: 'right', doors: [] },
@@ -10,7 +10,7 @@ const box = (L: number, W: number): FloorSide[] => [
 const base: FloorInput = {
 	material: 'tile', rect: true, sides: box(120, 144), pattern: 'grid', tileW: 12, tileL: 12, small: 4, offset: 0.5, turned: false,
 	joint: 0, gap: 0, along: 0, lineA: { kind: 'wall', side: 0, value: 0, door: 0 }, lineB: { kind: 'wall', side: 3, value: 0, door: 0 },
-	onLine: 'joint', extraPct: 0, boxSqft: 0, box2Sqft: 0, sheet: false, sheetSqft: 0, thick: 0.375, rollSqft: 0, base: true
+	onLine: 'joint', extraPct: 0, boxSqft: 0, box2Sqft: 0, sheet: false, sheetSqft: 0, thick: 0.375, rollSqft: 0, base: true, cuts: []
 };
 
 describe('flooring', () => {
@@ -101,5 +101,39 @@ describe('flooring', () => {
 		const b = bestFit(s)!;
 		const r = flooring({ ...s, lineA: { ...s.lineA, value: b.a }, lineB: { ...s.lineB, value: b.b } });
 		expect(r.smallest!).toBeGreaterThan(2.5);
+	});
+
+	it('cuts a section across the room, wall to wall, through each piece', () => {
+		const sides = box(120, 144);
+		sides[2].doors = [{ id: 9, at: 54, width: 12 }];
+		const r = flooring({ ...base, sides });
+		// Straight down at x = 60, looking right-to-left... seen from wall 2's side.
+		const sec = floorSection(r, { id: 1, p: [60.5, 50], deg: 90, flip: false });
+		expect(sec.ok).toBe(true);
+		expect(sec.len).toBeCloseTo(144);
+		expect(sec.pieces.length).toBe(12);
+		expect(sec.pieces.every((p) => Math.abs(p.b - p.a - 12) < 1e-6)).toBe(true);
+		expect(sec.ends.map((e) => e.wall).sort()).toEqual([0, 2]);
+		// The doorway on wall 3 runs x 66..54: x 60.5 goes through it.
+		expect(sec.ends.find((e) => e.wall === 2)!.door).toBe(true);
+		expect(sec.ends.find((e) => e.wall === 0)!.door).toBe(false);
+		// Left to right as seen looking +x (flip false looks to the line's right).
+		expect(sec.n[0]).toBeCloseTo(-1);
+	});
+	it('cuts an L-shaped room by its legs, and moves a cut off a wall', () => {
+		// 144 x 120 less a 72 x 60 notch at the bottom right.
+		const L = [144, 60, 72, 60, 72, 120];
+		const T = ['right', 'right', 'left', 'right', 'right', 'right'] as const;
+		const r = flooring({ ...base, rect: false, sides: L.map((length, i) => ({ id: i, length, turn: T[i], doors: [] })) });
+		const c = { id: 1, p: [36, 90] as [number, number], deg: 0, flip: false };
+		expect(floorSection(r, c).len).toBeCloseTo(72);
+		const off = cutOffWall(r, c)!;
+		expect(off.side).toBe(4);
+		expect(off.dist).toBeCloseTo(30);
+		// 80 off the bottom wall is across the top, both legs: 144.
+		expect(floorSection(r, { ...c, p: cutAt(r, c, off.side, 80) }).len).toBeCloseTo(144);
+		expect(floorSection(r, { ...c, p: [100, 30], deg: 90 }).len).toBeCloseTo(60);
+		expect(floorSection(r, { ...c, p: [200, 30] }).ok).toBe(true);
+		expect(floorSection(r, { ...c, p: [200, 300] }).ok).toBe(false);
 	});
 });

@@ -10,6 +10,7 @@ import type { Opening, Role, RunFraming } from './framing';
 import { COURSE_IN, UNIT_IN, wallsGrout, type LintelKind } from './grout';
 import type { Piece } from './concrete';
 import { at, type Plan, type PlanWall } from './plan';
+import { BASE_H, BASE_T, floorStack, polyRects, WALL_T, type FloorInput, type FloorResult } from './flooring';
 import { cells, rectToPlan, toPlan, type Rect, type StairInput, type StairResult, type V2 } from './stairs';
 
 export interface Solid {
@@ -42,9 +43,19 @@ export interface Mat {
 	tint?: number;
 }
 
+/** A flat outline on plan (x, plan y) pushed up from y0 by h: a tile, a
+ *  layer of the floor. Slabs of one material draw as one mesh. */
+export interface Slab {
+	poly: [number, number][];
+	y0: number;
+	h: number;
+	mat: string;
+}
+
 export interface Scene {
 	solids: Solid[];
 	mats: Record<string, Mat>;
+	slabs?: Slab[];
 }
 
 const SEL = 0.3;
@@ -269,4 +280,74 @@ export function stairScene(input: StairInput, r: StairResult): Scene {
 		solids.push(box(f.o, f.d, a0 - rt, a0, top - r.riserBoard, top, 0, f.width, 'riser'));
 	}
 	return { solids, mats };
+}
+
+/** A floor: the subfloor and underlayment to the walls, the grout bed,
+ *  every piece as cut, low walls (doorways open) and the base. */
+export function floorScene(s: FloorInput, r: FloorResult): Scene {
+	const solids: Solid[] = [];
+	const slabs: Slab[] = [];
+	const plank = s.material === 'plank';
+	const mats: Record<string, Mat> = {
+		sub: { color: '--plate' },
+		under: { color: '--concrete-side' },
+		bed: { color: '--grout' },
+		a: { color: plank ? '--wood' : '--concrete-top', edges: !plank && r.pieces.length < 4000, edge: '--grout' },
+		b: { color: plank ? '--wood-king' : '--cmu', edges: !plank && r.pieces.length < 4000, edge: '--grout' },
+		ac: { color: plank ? '--wood' : '--concrete-top', opacity: 0.8 },
+		bc: { color: plank ? '--wood-king' : '--cmu', opacity: 0.8 },
+		thin: { color: '--danger' },
+		wall: { color: '--surface', edges: true, edge: '--border' },
+		base: { color: '--wood-header' }
+	};
+	// An L or any other notched room, as rectangles (slabs must be convex).
+	const rects = (poly: typeof r.room): [number, number][][] =>
+		polyRects(poly).map((b) => [
+			[b.x0, b.y0],
+			[b.x1, b.y0],
+			[b.x1, b.y1],
+			[b.x0, b.y1]
+		]);
+	const room = rects(r.room);
+	const lay = rects(r.lay);
+	const stack = floorStack(s);
+	const top = stack[stack.length - 1];
+	const all = (polys: [number, number][][], y0: number, h: number, mat: string) => polys.forEach((poly) => slabs.push({ poly, y0, h, mat }));
+	for (const l of stack.slice(0, -1)) all(l.full ? room : lay, l.y0, l.h, l.y0 < 0 ? 'sub' : l.full ? 'under' : 'bed');
+	if (r.approx) all(lay, top.y0, top.h, 'a');
+	else {
+		// Grout fills the joints a little under the faces.
+		if (!plank && s.joint > 0) all(lay, top.y0, top.h * 0.85, 'bed');
+		// Alternate plank shades so the rows read.
+		r.pieces.forEach((p, i) => {
+			const shade = plank ? (i * 7) % 3 === 0 : p.type === 1;
+			const mat = p.thin ? 'thin' : (shade ? 'b' : 'a') + (p.cut && !plank ? 'c' : '');
+			for (const part of p.laid) slabs.push({ poly: part as [number, number][], y0: top.y0, h: top.h, mat });
+		});
+	}
+	// Low walls, cut off a hand's width over the floor, doorways open.
+	const H = 14;
+	const ft = top.y0 + top.h;
+	r.walls.forEach((w, i) => {
+		const len = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+		const doors = [...(r.doorsAt[i] ?? [])].sort((x, y) => x.at - y.at);
+		const open: [number, number][] = [];
+		let at = -WALL_T;
+		for (const d of doors) {
+			open.push([at, Math.max(at, d.at)]);
+			at = d.at + d.width;
+		}
+		open.push([at, len + WALL_T]);
+		const ry = Math.atan2(-w.d[1], w.d[0]);
+		const box = (a: number, b: number, y0: number, h: number, off: number, depth: number, mat: string) => {
+			const m = (a + b) / 2;
+			solids.push({ c: [w.a[0] + w.d[0] * m + w.n[0] * off, y0 + h / 2, w.a[1] + w.d[1] * m + w.n[1] * off], s: [b - a, h, depth], ry, mat });
+		};
+		for (const [a, b] of open) {
+			if (b - a < 0.05) continue;
+			box(a, b, 0, H, -WALL_T / 2, WALL_T, 'wall');
+			if (s.base) box(Math.max(0, a), Math.min(len, b), ft, BASE_H, BASE_T / 2, BASE_T, 'base');
+		}
+	});
+	return { solids, mats, slabs };
 }

@@ -75,6 +75,17 @@ export interface FloorInput {
 	/** Underlayment roll or sheet coverage; 0 for none. */
 	rollSqft: number;
 	base: boolean;
+	/** Section cuts, marked on the plan. */
+	cuts: FloorCut[];
+}
+
+/** A section cut: a line through `p` at `deg` (plan degrees, y down), seen
+ *  looking to its right side (or its left, flipped). */
+export interface FloorCut {
+	id: number;
+	p: V2;
+	deg: number;
+	flip: boolean;
 }
 
 export const PATTERNS: { id: PatternId; name: string; turn: string }[] = [
@@ -379,6 +390,8 @@ export interface FloorPiece {
 	thin: boolean;
 	/** Narrowest width of what is left after cutting. */
 	width: number;
+	/** What is laid of it: the piece clipped to the room, in convex parts. */
+	laid: V2[][];
 }
 export interface FloorLine {
 	/** Ends of the chalk line across the room. */
@@ -414,6 +427,8 @@ export interface FloorResult {
 	layArea: number;
 	perimeter: number;
 	doors: number;
+	/** Each side's doorways (sides 3 and 4 of a rectangle included). */
+	doorsAt: FloorDoor[][];
 	baseLf: number;
 	types: FloorType[];
 	pieces: FloorPiece[];
@@ -631,7 +646,7 @@ export function flooring(s: FloorInput): FloorResult {
 					const ty = rp.type;
 					if (cut) counts[ty].cut++;
 					else counts[ty].full++;
-					pieces.push({ type: ty, poly, cut, thin: cut && !s.sheet && width < Math.min(2, minDim[ty] / 3), width: cut ? width : Infinity });
+					pieces.push({ type: ty, poly, cut, thin: cut && !s.sheet && width < Math.min(2, minDim[ty] / 3), width: cut ? width : Infinity, laid: parts });
 				});
 			}
 	}
@@ -688,6 +703,7 @@ export function flooring(s: FloorInput): FloorResult {
 		layArea,
 		perimeter,
 		doors: doorList.length,
+		doorsAt: sides.map((x) => x.doors),
 		baseLf,
 		types,
 		pieces,
@@ -736,4 +752,206 @@ export function bestFit(s: FloorInput, steps = 16): { a: number; b: number } | n
 			if (!best || score > best.score + 1e-6 || (Math.abs(score - best.score) <= 1e-6 && n < best.n)) best = { a, b, score, n };
 		}
 	return best ? { a: Math.round(best.a * 16) / 16, b: Math.round(best.b * 16) / 16 } : null;
+}
+
+// --- sections -------------------------------------------------------------
+
+/** The floor's build-up, bottom to top, inches (0: the subfloor's top). */
+export interface FloorLayer {
+	name: string;
+	y0: number;
+	h: number;
+	/** Theme color variable. */
+	color: string;
+	/** Laid to the walls (subfloor, underlayment) or stopped at the gap. */
+	full: boolean;
+}
+export const SUBFLOOR = 0.75;
+export const WALL_T = 4.5;
+export const BASE_H = 3.25;
+export const BASE_T = 0.5;
+
+export function floorStack(s: FloorInput): FloorLayer[] {
+	const out: FloorLayer[] = [{ name: '¾″ subfloor', y0: -SUBFLOOR, h: SUBFLOOR, color: '--plate', full: true }];
+	let y = 0;
+	const tile = s.material === 'tile';
+	if (s.rollSqft > 0) {
+		const h = tile ? 0.25 : 0.125;
+		out.push({ name: tile ? 'Underlayment' : 'Underlayment pad', y0: y, h, color: '--concrete-side', full: true });
+		y += h;
+	}
+	if (tile) {
+		out.push({ name: 'Thinset', y0: y, h: 3 / 16, color: '--grout', full: false });
+		y += 3 / 16;
+	}
+	out.push({ name: tile ? 'Tile' : 'Plank', y0: y, h: Math.max(0.125, s.thick), color: tile ? '--concrete-top' : '--wood', full: false });
+	return out;
+}
+
+/** Where line o + e·t crosses a polygon's edges (each crossing once). */
+function lineHits(poly: V2[], o: V2, e: V2): { t: number; edge: number }[] {
+	const nrm: V2 = [-e[1], e[0]];
+	const out: { t: number; edge: number }[] = [];
+	for (let i = 0; i < poly.length; i++) {
+		const a = poly[i];
+		const b = poly[(i + 1) % poly.length];
+		const da = dot([a[0] - o[0], a[1] - o[1]], nrm);
+		const db = dot([b[0] - o[0], b[1] - o[1]], nrm);
+		if (da > 0 === db > 0) continue;
+		const k = da / (da - db);
+		const x: V2 = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+		out.push({ t: dot([x[0] - o[0], x[1] - o[1]], e), edge: i });
+	}
+	return out.sort((x, y) => x.t - y.t);
+}
+
+/** The stretch of line o + e·t inside a convex polygon, or null. */
+function lineInConvex(poly: V2[], o: V2, e: V2): [number, number] | null {
+	const sg = Math.sign(signedArea(poly)) || 1;
+	let lo = -Infinity;
+	let hi = Infinity;
+	for (let i = 0; i < poly.length; i++) {
+		const a = poly[i];
+		const b = poly[(i + 1) % poly.length];
+		const m: V2 = [-(b[1] - a[1]) * sg, (b[0] - a[0]) * sg]; // inward
+		const c = dot([o[0] - a[0], o[1] - a[1]], m);
+		const de = dot(e, m);
+		if (Math.abs(de) < 1e-12) {
+			if (c < 0) return null;
+			continue;
+		}
+		const t = -c / de;
+		if (de > 0) lo = Math.max(lo, t);
+		else hi = Math.min(hi, t);
+	}
+	return hi - lo > 1e-6 ? [lo, hi] : null;
+}
+
+export interface SectionEnd {
+	/** Along the section, from its start. */
+	t: number;
+	wall: number;
+	/** Through a doorway, not a wall. */
+	door: boolean;
+}
+export interface SectionPiece {
+	a: number;
+	b: number;
+	type: number;
+	cut: boolean;
+	thin: boolean;
+}
+export interface FloorSection {
+	/** The cut crosses the room. */
+	ok: boolean;
+	/** Ends on the plan (first and last wall crossed), left to right as seen. */
+	p: V2;
+	q: V2;
+	/** Left-to-right as seen, and the way the section looks. */
+	e: V2;
+	n: V2;
+	len: number;
+	/** Every crossing of the room's faces, in order: in, out, in, out... */
+	ends: SectionEnd[];
+	/** Pieces cut by the line, left to right. */
+	pieces: SectionPiece[];
+	/** Laid stretches (inside the gap at the walls). */
+	lay: [number, number][];
+	/** Where the chalk lines cross it. */
+	lines: { name: string; t: number }[];
+	/** The cut's middle on plan (its turning point). */
+	mid: V2;
+}
+
+/** Unit vector of a cut's line, and the way it looks. */
+export function cutDirs(c: FloorCut): { d: V2; n: V2 } {
+	const r = (c.deg * Math.PI) / 180;
+	const d: V2 = [Math.cos(r) + 0, Math.sin(r) + 0];
+	return { d, n: c.flip ? left(d) : right(d) };
+}
+
+export function floorSection(r: FloorResult, c: FloorCut): FloorSection {
+	const { n } = cutDirs(c);
+	// Seen looking along n, left to right runs along e (y down on plan).
+	const e: V2 = [-n[1] + 0, n[0] + 0];
+	const hits = lineHits(r.room, c.p, e);
+	const none: FloorSection = { ok: false, p: c.p, q: c.p, e, n, len: 0, ends: [], pieces: [], lay: [], lines: [], mid: c.p };
+	if (hits.length < 2) return none;
+	const t0 = hits[0].t;
+	const t1 = hits[hits.length - 1].t;
+	const p = add(c.p, e, t0);
+	const q = add(c.p, e, t1);
+	const sides = r.walls;
+	const ends: SectionEnd[] = hits.map((h) => {
+		const w = sides[h.edge];
+		const x = add(c.p, e, h.t);
+		const along = dot([x[0] - w.a[0], x[1] - w.a[1]], w.d);
+		const door = (r.doorsAt[h.edge] ?? []).some((d) => along >= d.at - 1e-6 && along <= d.at + d.width + 1e-6);
+		return { t: h.t - t0, wall: h.edge, door };
+	});
+	const lh = lineHits(r.lay, c.p, e);
+	const lay: [number, number][] = [];
+	for (let i = 0; i + 1 < lh.length; i += 2) lay.push([lh[i].t - t0, lh[i + 1].t - t0]);
+	const pieces: SectionPiece[] = [];
+	for (const pc of r.pieces) {
+		const spans: [number, number][] = [];
+		for (const part of pc.laid) {
+			const s = lineInConvex(part, c.p, e);
+			if (s) spans.push([s[0] - t0, s[1] - t0]);
+		}
+		spans.sort((x, y) => x[0] - y[0]);
+		let cur: [number, number] | null = null;
+		const flush = () => cur && cur[1] - cur[0] > 0.02 && pieces.push({ a: cur[0], b: cur[1], type: pc.type, cut: pc.cut, thin: pc.thin });
+		for (const sp of spans) {
+			if (cur && sp[0] <= cur[1] + 1e-6) cur[1] = Math.max(cur[1], sp[1]);
+			else {
+				flush();
+				cur = [sp[0], sp[1]];
+			}
+		}
+		flush();
+	}
+	pieces.sort((x, y) => x.a - y.a);
+	const lines: FloorSection['lines'] = [];
+	r.lines.forEach((l, i) => {
+		const ld: V2 = [l.q[0] - l.p[0], l.q[1] - l.p[1]];
+		const den = cross(e, ld);
+		if (Math.abs(den) < 1e-9) return;
+		const t = cross([l.p[0] - c.p[0], l.p[1] - c.p[1]], ld) / den - t0;
+		if (t > 0 && t < t1 - t0) lines.push({ name: i ? 'B' : 'A', t });
+	});
+	return { ok: true, p, q, e, n, len: t1 - t0, ends, pieces, lay, lines, mid: add(p, e, (t1 - t0) / 2) };
+}
+
+/** A wall parallel to the cut, the nearest one, and the cut's distance off it. */
+export function cutOffWall(r: FloorResult, c: FloorCut): { side: number; dist: number } | null {
+	const { d } = cutDirs(c);
+	let best: { side: number; dist: number } | null = null;
+	r.walls.forEach((w, i) => {
+		if (Math.abs(cross(w.d, d)) > 1e-6) return;
+		const dist = dot([c.p[0] - w.a[0], c.p[1] - w.a[1]], w.n);
+		if (dist >= 0 && (!best || dist < best.dist)) best = { side: i, dist };
+	});
+	return best;
+}
+
+/** The cut moved to `dist` off wall `side` (parallel to it). */
+export function cutAt(r: FloorResult, c: FloorCut, side: number, dist: number): V2 {
+	const w = r.walls[side];
+	const now = dot([c.p[0] - w.a[0], c.p[1] - w.a[1]], w.n);
+	return add(c.p, w.n, dist - now);
+}
+
+/** Two cuts through the room's biggest part, a little off its middle (so
+ *  not down the center chalk lines): across the rows and along them. */
+export function defaultCuts(r: FloorResult, along: number, ids: [number, number]): FloorCut[] {
+	const rects = polyRects(r.room);
+	const big = rects.reduce((m, x) => ((x.x1 - x.x0) * (x.y1 - x.y0) > (m.x1 - m.x0) * (m.y1 - m.y0) ? x : m), rects[0] ?? { x0: 0, y0: 0, x1: 0, y1: 0 });
+	const p: V2 = [Math.round(big.x0 + (big.x1 - big.x0) * 0.4), Math.round(big.y0 + (big.y1 - big.y0) * 0.4)];
+	const u = r.walls[Math.min(along, r.walls.length - 1)]?.d ?? [1, 0];
+	const deg = Math.round((Math.atan2(u[1], u[0]) * 180) / Math.PI);
+	return [
+		{ id: ids[0], p, deg: deg + 90, flip: false },
+		{ id: ids[1], p: [p[0], p[1]], deg, flip: false }
+	];
 }

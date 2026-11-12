@@ -192,11 +192,55 @@
 				model.add(new T.LineSegments(g, new T.LineBasicMaterial({ color: css(spec.edge ?? '--wood-edge'), transparent: true, opacity: 0.5 })));
 			}
 		}
+		// Slabs: flat outlines pushed up, all of one material in one mesh.
+		let minY = 0;
+		const slabGroups = new Map<string, NonNullable<typeof input.slabs>>();
+		for (const sl of input.slabs ?? []) {
+			if (sl.poly.length < 3 || sl.h <= 0) continue;
+			if (!slabGroups.has(sl.mat)) slabGroups.set(sl.mat, []);
+			slabGroups.get(sl.mat)!.push(sl);
+		}
+		for (const [name, list] of slabGroups) {
+			const spec = input.mats[name] ?? { color: '--faint' };
+			const color = new T.Color(css(spec.color));
+			if (spec.tint) color.lerp(accent, spec.tint);
+			const see = spec.opacity !== undefined && spec.opacity < 1;
+			const pos: number[] = [];
+			const edge: number[] = [];
+			for (const sl of list) {
+				let area = 0;
+				const P = sl.poly;
+				for (let i = 0; i < P.length; i++) area += P[i][0] * P[(i + 1) % P.length][1] - P[(i + 1) % P.length][0] * P[i][1];
+				const poly = area > 0 ? [...P].reverse() : P;
+				const y0 = sl.y0;
+				const y1 = sl.y0 + sl.h;
+				minY = Math.min(minY, y0);
+				for (let i = 1; i + 1 < poly.length; i++) pos.push(poly[0][0], y1, poly[0][1], poly[i][0], y1, poly[i][1], poly[i + 1][0], y1, poly[i + 1][1]);
+				for (let i = 0; i < poly.length; i++) {
+					const a = poly[i];
+					const b = poly[(i + 1) % poly.length];
+					pos.push(a[0], y0, a[1], b[0], y0, b[1], b[0], y1, b[1], a[0], y0, a[1], b[0], y1, b[1], a[0], y1, a[1]);
+					if (spec.edges) edge.push(a[0], y1 + 0.01, a[1], b[0], y1 + 0.01, b[1]);
+					min = min.min(new T.Vector3(a[0], 0, a[1]));
+					max = max.max(new T.Vector3(a[0], y1, a[1]));
+				}
+			}
+			const g = new T.BufferGeometry();
+			g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+			g.computeVertexNormals();
+			model.add(new T.Mesh(g, new T.MeshLambertMaterial({ color, transparent: see, opacity: spec.opacity ?? 1, depthWrite: !see, side: T.DoubleSide })));
+			if (edge.length) {
+				const eg = new T.BufferGeometry();
+				eg.setAttribute('position', new T.Float32BufferAttribute(edge, 3));
+				model.add(new T.LineSegments(eg, new T.LineBasicMaterial({ color: css(spec.edge ?? '--wood-edge'), transparent: true, opacity: 0.6 })));
+			}
+		}
+
 		unit.box.dispose();
 		unit.cyl.dispose();
 		edgePts.box.dispose();
 		edgePts.cyl.dispose();
-		if (!input.solids.length) {
+		if (!input.solids.length && !input.slabs?.length) {
 			draw();
 			return;
 		}
@@ -206,7 +250,7 @@
 		const pad = span * 0.12 + 12;
 		const floor = new T.Mesh(new T.PlaneGeometry(max.x - min.x + pad * 2, max.z - min.z + pad * 2), new T.MeshLambertMaterial({ color: css('--surface-2') }));
 		floor.rotation.x = -Math.PI / 2;
-		floor.position.set((min.x + max.x) / 2, -0.1, (min.z + max.z) / 2);
+		floor.position.set((min.x + max.x) / 2, minY - 0.1, (min.z + max.z) / 2);
 		model.add(floor);
 
 		// Aim the camera when the model's size changes, not on every edit,
@@ -218,7 +262,8 @@
 			const cx = (min.x + max.x) / 2;
 			const cz = (min.z + max.z) / 2;
 			const r = Math.max(Math.hypot(max.x - min.x, max.z - min.z), max.y) * 0.5;
-			const dist = (r / Math.sin((camera.fov * Math.PI) / 360)) * 0.9;
+			// A tall view (a phone) sees less across: back off to fit the width.
+			const dist = ((r / Math.sin((camera.fov * Math.PI) / 360)) * 0.9) / Math.min(1, Math.max(0.5, camera.aspect));
 			controls.target.set(cx, max.y * 0.4, cz);
 			camera.position.set(cx + dist * 0.45, max.y * 0.4 + dist * 0.55, cz + dist * 0.7);
 			controls.minDistance = r * 0.2;

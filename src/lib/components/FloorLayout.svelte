@@ -4,9 +4,29 @@
 	// the layout is set out from, each with its distance off its wall.
 	import { formatFtIn } from '$lib/calc/units';
 	import { prefs } from '$lib/stores/app.svelte';
-	import type { FloorInput, FloorResult, V2 } from '$lib/takeoff/flooring';
+	import { cutAt, cutOffWall, floorSection, type FloorCut, type FloorInput, type FloorResult, type V2 } from '$lib/takeoff/flooring';
 
-	let { r, input, selected = -1, onselect }: { r: FloorResult; input: FloorInput; selected?: number; onselect?: (i: number) => void } = $props();
+	let {
+		r,
+		input,
+		selected = -1,
+		onselect,
+		cuts = [],
+		cutSel = -1,
+		oncut,
+		oncutpick
+	}: {
+		r: FloorResult;
+		input: FloorInput;
+		selected?: number;
+		onselect?: (i: number) => void;
+		/** Section cuts to mark; with `oncut` they drag (the line slides, an end tag turns it). */
+		cuts?: FloorCut[];
+		cutSel?: number;
+		oncut?: (i: number, c: Pick<FloorCut, 'p' | 'deg'>) => void;
+		/** A tap on a cut: its line (`open` false) or an end tag (open it). */
+		oncutpick?: (i: number, open: boolean) => void;
+	} = $props();
 	const ft = (v: number) => formatFtIn(v, prefs.precision);
 
 	const bb = $derived(
@@ -16,7 +36,7 @@
 	const fs = $derived(Math.max(3, big * 0.035));
 	const sw = $derived(big / 500);
 	const wallT = $derived(Math.max(3, big * 0.018));
-	const off = $derived(fs * 2.6);
+	const off = $derived(fs * (cuts.length ? 4.2 : 2.6));
 	const view = $derived(`${bb[0] - off} ${bb[1] - off} ${bb[2] - bb[0] + off * 2} ${bb[3] - bb[1] + off * 2}`);
 
 	const poly = (p: V2[]) => 'M' + p.map((q) => `${q[0].toFixed(2)},${q[1].toFixed(2)}`).join('L') + 'Z';
@@ -48,9 +68,89 @@
 		)
 	);
 	const uid = $props.id();
+
+	// Section marks: the cut across the room and past the walls, a tag at
+	// each end with the arrow the way it looks.
+	const marks = $derived(
+		cuts.map((c) => {
+			const sec = floorSection(r, c);
+			const e = sec.e;
+			const ext = fs * 2.3;
+			const a: V2 = sec.ok ? sec.p : [c.p[0] - e[0] * big * 0.25, c.p[1] - e[1] * big * 0.25];
+			const b: V2 = sec.ok ? sec.q : [c.p[0] + e[0] * big * 0.25, c.p[1] + e[1] * big * 0.25];
+			const P: V2 = [a[0] - e[0] * ext, a[1] - e[1] * ext];
+			const Q: V2 = [b[0] + e[0] * ext, b[1] + e[1] * ext];
+			const R = fs * 0.62;
+			const tagAt = (x: V2, s: number): V2 => [x[0] + e[0] * R * s, x[1] + e[1] * R * s];
+			const arrow = (t: V2) => {
+				const tip: V2 = [t[0] + sec.n[0] * R * 1.9, t[1] + sec.n[1] * R * 1.9];
+				const l: V2 = [t[0] + e[0] * R * 0.95, t[1] + e[1] * R * 0.95];
+				const rr: V2 = [t[0] - e[0] * R * 0.95, t[1] - e[1] * R * 0.95];
+				return `M${l[0]},${l[1]}L${tip[0]},${tip[1]}L${rr[0]},${rr[1]}Z`;
+			};
+			const tp = tagAt(P, -1);
+			const tq = tagAt(Q, 1);
+			return { ok: sec.ok, P, Q, tp, tq, R, ap: arrow(tp), aq: arrow(tq), mid: sec.ok ? sec.mid : c.p, n: sec.n, e };
+		})
+	);
+
+	let svgEl: SVGSVGElement;
+	function local(ev: PointerEvent): V2 {
+		const mtx = svgEl?.getScreenCTM();
+		if (!mtx) return [0, 0];
+		const pt = svgEl.createSVGPoint();
+		pt.x = ev.clientX;
+		pt.y = ev.clientY;
+		const q = pt.matrixTransform(mtx.inverse());
+		return [q.x, q.y];
+	}
+	let drag: { i: number; mode: 'move' | 'turn'; end: number; at: V2; x: number; y: number; p0: V2; moved: boolean } | null = null;
+	function down(ev: PointerEvent, i: number, mode: 'move' | 'turn', end = 1) {
+		if (!oncut && !oncutpick) return;
+		ev.stopPropagation();
+		ev.preventDefault();
+		(ev.currentTarget as Element).setPointerCapture(ev.pointerId);
+		drag = { i, mode, end, at: local(ev), x: ev.clientX, y: ev.clientY, p0: [...cuts[i].p] as V2, moved: false };
+	}
+	function move(ev: PointerEvent) {
+		if (!drag || !oncut) return;
+		if (!drag.moved && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) < 5) return;
+		drag.moved = true;
+		const c = cuts[drag.i];
+		const mk = marks[drag.i];
+		const pt = local(ev);
+		if (drag.mode === 'move') {
+			const k = (pt[0] - drag.at[0]) * mk.n[0] + (pt[1] - drag.at[1]) * mk.n[1];
+			const next: FloorCut = { ...c, p: [drag.p0[0] + mk.n[0] * k, drag.p0[1] + mk.n[1] * k] };
+			const ow = cutOffWall(r, next);
+			oncut(drag.i, { p: ow ? cutAt(r, next, ow.side, Math.round(ow.dist)) : next.p, deg: c.deg });
+		} else {
+			// The dragged end's way from the middle is e (or -e for the start).
+			const ang = (Math.atan2(pt[1] - mk.mid[1], pt[0] - mk.mid[0]) * 180) / Math.PI + (drag.end > 0 ? 0 : 180);
+			// e = d when flipped, -d otherwise.
+			let deg = Math.round((ang + (c.flip ? 0 : 180)) / 5) * 5;
+			deg = ((((deg + 180) % 360) + 360) % 360) - 180;
+			if (deg !== c.deg) oncut(drag.i, { p: [mk.mid[0], mk.mid[1]], deg });
+		}
+	}
+	function up(ev: PointerEvent) {
+		const d = drag;
+		drag = null;
+		if (d && !d.moved && ev.type !== 'pointercancel') oncutpick?.(d.i, d.mode === 'turn');
+	}
+	// A touch on a mark drags it rather than scrolling the page.
+	let marksG: SVGGElement;
+	$effect(() => {
+		if (!marksG) return;
+		void cuts.length;
+		const stop = (e: Event) => e.preventDefault();
+		const gs = [...marksG.querySelectorAll<SVGElement>('.grab')];
+		for (const g of gs) g.addEventListener('touchstart', stop, { passive: false });
+		return () => gs.forEach((g) => g.removeEventListener('touchstart', stop));
+	});
 </script>
 
-<svg viewBox={view} role="img" aria-label="Floor layout">
+<svg viewBox={view} role="img" aria-label="Floor layout" bind:this={svgEl}>
 	<defs>
 		<clipPath id="lay-{uid}"><path d={poly(r.lay)} /></clipPath>
 	</defs>
@@ -92,6 +192,38 @@
 		<circle cx={l.p[0]} cy={l.p[1]} r={fs * 0.62} class="tag" />
 		<text x={l.p[0]} y={l.p[1] + fs * 0.3} font-size={fs * 0.8} class="tagt" text-anchor="middle">{i ? 'B' : 'A'}</text>
 	{/each}
+	<!-- section cuts -->
+	<g bind:this={marksG}>
+		{#each marks as mk, i (cuts[i].id)}
+			{@const on = cutSel === i}
+			<g class="cutm" class:on class:off={!mk.ok}>
+				<line x1={mk.P[0]} y1={mk.P[1]} x2={mk.Q[0]} y2={mk.Q[1]} class="cutl" stroke-width={sw * (on ? 4 : 2.6)} stroke-dasharray="{fs * 1.1} {fs * 0.3} {fs * 0.2} {fs * 0.3}" />
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<line
+					x1={mk.P[0]}
+					y1={mk.P[1]}
+					x2={mk.Q[0]}
+					y2={mk.Q[1]}
+					class="grab hit"
+					class:movable={!!oncut}
+					stroke-width={fs * 1.3}
+					onpointerdown={(e) => down(e, i, 'move')}
+					onpointermove={move}
+					onpointerup={up}
+					onpointercancel={up}
+				/>
+				{#each [[mk.tp, mk.ap, -1], [mk.tq, mk.aq, 1]] as [t, a, end] (end)}
+					{@const c = t as V2}
+					<path d={a as string} class="arr" />
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<g class="grab" class:movable={!!oncut} onpointerdown={(e) => down(e, i, 'turn', end as number)} onpointermove={move} onpointerup={up} onpointercancel={up}>
+						<circle cx={c[0]} cy={c[1]} r={mk.R * 1.25} class="tagc" stroke-width={sw * 2} />
+						<text x={c[0]} y={c[1] + fs * 0.3} font-size={fs * 0.8} class="cutt" text-anchor="middle">{i + 1}</text>
+					</g>
+				{/each}
+			</g>
+		{/each}
+	</g>
 </svg>
 <div class="legend fine">
 	<span><b>A</b> {ft(r.lines[0].dist)} off wall {r.lines[0].side + 1}</span>
@@ -158,6 +290,46 @@
 		font-family: var(--font-num);
 		font-weight: 800;
 		fill: var(--primary-ink);
+	}
+	.cutl {
+		stroke: var(--text);
+		opacity: 0.75;
+	}
+	.cutm.off .cutl {
+		opacity: 0.35;
+	}
+	.cutm.on .cutl {
+		stroke: var(--green-dark);
+		opacity: 1;
+	}
+	.hit {
+		stroke: transparent;
+		pointer-events: stroke;
+	}
+	.movable.hit {
+		cursor: move;
+	}
+	.grab.movable {
+		cursor: grab;
+	}
+	.arr {
+		fill: var(--text);
+	}
+	.cutm.on .arr {
+		fill: var(--green-dark);
+	}
+	.tagc {
+		fill: var(--surface);
+		stroke: var(--text);
+	}
+	.cutm.on .tagc {
+		stroke: var(--green-dark);
+	}
+	.cutt {
+		font-family: var(--font-num);
+		font-weight: 800;
+		fill: var(--text);
+		pointer-events: none;
 	}
 	.note {
 		font-family: var(--font-num);

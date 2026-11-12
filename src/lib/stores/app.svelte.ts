@@ -114,7 +114,11 @@ export const FLOOR_DEFAULT: FloorInput = {
 	sheetSqft: 1,
 	thick: 0.375,
 	rollSqft: 0,
-	base: true
+	base: true,
+	cuts: [
+		{ id: 6, p: [58, 48], deg: 90, flip: false },
+		{ id: 7, p: [58, 48], deg: 0, flip: false }
+	]
 };
 
 // The takeoff screens edit these; a takeoff opened from a project is copied
