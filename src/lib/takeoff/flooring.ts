@@ -77,6 +77,11 @@ export interface FloorInput {
 	base: boolean;
 	/** Section cuts, marked on the plan. */
 	cuts: FloorCut[];
+	/** Left untiled inside the laid area (a wall's windows, niches, doors),
+	 *  already widened by any gap around them. */
+	holes?: Box[];
+	/** More points a 'door' line can run through (an opening's middle). */
+	marks?: { id: number; c: V2 }[];
 }
 
 /** A section cut: a line through `p` at `deg` (plan degrees, y down), seen
@@ -214,6 +219,28 @@ export function polyRects(poly: V2[]): Box[] {
 		}
 	}
 	return out;
+}
+
+/** Rectangles less the parts covered by `holes`, as rectangles. */
+export function subtractBoxes(rects: Box[], holes: Box[]): Box[] {
+	let out = rects;
+	for (const h of holes) {
+		const next: Box[] = [];
+		for (const r of out) {
+			if (h.x1 <= r.x0 || h.x0 >= r.x1 || h.y1 <= r.y0 || h.y0 >= r.y1) {
+				next.push(r);
+				continue;
+			}
+			const y0 = Math.max(r.y0, h.y0);
+			const y1 = Math.min(r.y1, h.y1);
+			if (h.y0 > r.y0) next.push({ ...r, y1: h.y0 });
+			if (h.y1 < r.y1) next.push({ ...r, y0: h.y1 });
+			if (h.x0 > r.x0) next.push({ x0: r.x0, x1: h.x0, y0, y1 });
+			if (h.x1 < r.x1) next.push({ x0: h.x1, x1: r.x1, y0, y1 });
+		}
+		out = next;
+	}
+	return out.filter((b) => b.x1 - b.x0 > 1e-9 && b.y1 - b.y0 > 1e-9);
 }
 
 /** Sutherland-Hodgman: a polygon cut to a rectangle. */
@@ -491,7 +518,7 @@ export function flooring(s: FloorInput): FloorResult {
 	const lay = insetSquare(pts, normals, gap);
 	const room = pts;
 	const areaIn = area(room);
-	const layArea = area(lay);
+	const layArea = subtractBoxes(polyRects(lay), s.holes ?? []).reduce((t, b) => t + (b.x1 - b.x0) * (b.y1 - b.y0), 0);
 	const perimeter = sides.reduce((t, x) => t + Math.max(0, x.length), 0);
 	const doorList = sides.flatMap((x, i) => x.doors.map((d) => ({ ...d, side: i })));
 	const baseLf = Math.max(0, perimeter - doorList.reduce((t, d) => t + d.width, 0)) / 12;
@@ -527,6 +554,8 @@ export function flooring(s: FloorInput): FloorResult {
 				const m = add(ww.a, ww.d, d.at + d.width / 2);
 				return { c: proj(m, ax), side, edge: false };
 			}
+			const mk = s.marks?.find((x) => x.id === ref.door);
+			if (mk) return { c: proj(mk.c, ax), side, edge: false };
 		}
 		const [lo, hi] = extent(ax);
 		return { c: (lo + hi) / 2, side, edge: false };
@@ -554,7 +583,7 @@ export function flooring(s: FloorInput): FloorResult {
 	const o: V2 = add(add(crossing, tu, -anchor[0]), tv, -anchor[1]);
 
 	// Lay every repeat that can reach the room.
-	const rects = polyRects(lay);
+	const rects = subtractBoxes(polyRects(lay), s.holes ?? []);
 	const bb = lay.reduce((m, p) => [Math.min(m[0], p[0]), Math.min(m[1], p[1]), Math.max(m[2], p[0]), Math.max(m[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]);
 	const cellArea = Math.abs(cross(rep.a, rep.b));
 	const approx = layArea / Math.max(1e-6, cellArea) * rep.pieces.length > MAX_PIECES;

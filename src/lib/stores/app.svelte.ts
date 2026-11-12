@@ -8,6 +8,7 @@ import type { GroutInput } from '$lib/takeoff/grout';
 import type { WallInput } from '$lib/takeoff/framing';
 import type { StairInput } from '$lib/takeoff/stairs';
 import type { FloorInput } from '$lib/takeoff/flooring';
+import type { WallTileInput } from '$lib/takeoff/walltile';
 import { persisted } from './persist.svelte';
 
 export const prefs = persisted('prefs', {
@@ -121,6 +122,39 @@ export const FLOOR_DEFAULT: FloorInput = {
 	]
 };
 
+/** A tub wall: tile from the tub to 7′, a niche, a full row on the tub. */
+export const WALLTILE_DEFAULT: WallTileInput = {
+	length: 60,
+	ceiling: 96,
+	start: 'tub',
+	tubHeight: 15,
+	top: 84,
+	left: 'corner',
+	right: 'corner',
+	trimTop: true,
+	trimLen: 96,
+	openings: [{ id: 8, kind: 'niche', x: 18, sill: 48, w: 24, h: 12, depth: 3.5 }],
+	pattern: 'offset',
+	tileW: 4,
+	tileL: 12,
+	small: 2,
+	offset: 1 / 2,
+	turned: false,
+	joint: 0.0625,
+	gap: 0.125,
+	lineA: { kind: 'wall', side: 2, value: 0, door: 0 },
+	lineB: { kind: 'center', side: 3, value: 0, door: 0 },
+	onLine: 'joint',
+	extraPct: 10,
+	boxSqft: 10,
+	box2Sqft: 10,
+	sheet: false,
+	sheetSqft: 1,
+	thick: 0.3125,
+	backerSqft: 15,
+	cuts: [{ id: 9, x: 40 }]
+};
+
 // The takeoff screens edit these; a takeoff opened from a project is copied
 // in and saved back as it changes (stores/projects).
 export const concrete = persisted('concrete', structuredClone(CONCRETE_DEFAULT));
@@ -128,6 +162,7 @@ export const grout = persisted('grout', structuredClone(GROUT_DEFAULT));
 export const wall = persisted('wall', structuredClone(WALL_DEFAULT));
 export const stairs = persisted('stairs', structuredClone(STAIRS_DEFAULT));
 export const floor = persisted('floor', structuredClone(FLOOR_DEFAULT));
+export const walltile = persisted('walltile', structuredClone(WALLTILE_DEFAULT));
 
 export const convert = persisted('convert', {
 	mode: 'length' as 'length' | 'area' | 'volume' | 'dims',

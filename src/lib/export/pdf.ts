@@ -21,6 +21,9 @@ import StairStringer from '$lib/components/StairStringer.svelte';
 import { stairRuns, stairs, type StairInput } from '$lib/takeoff/stairs';
 import FloorLayout from '$lib/components/FloorLayout.svelte';
 import FloorSection from '$lib/components/FloorSection.svelte';
+import WallTileElevation from '$lib/components/WallTileElevation.svelte';
+import WallTileSection from '$lib/components/WallTileSection.svelte';
+import { wallTile, type WallTileInput } from '$lib/takeoff/walltile';
 import { flooring, type FloorInput } from '$lib/takeoff/flooring';
 
 // Letter, in points.
@@ -149,6 +152,11 @@ async function drawings(t: Takeoff): Promise<Drawing[]> {
 		const cuts = s.cuts ?? [];
 		out.push(await renderDrawing(FloorLayout, { r, input: s, cuts }, 'Layout', 1600));
 		for (const [i, cut] of cuts.entries()) out.push(await renderDrawing(FloorSection, { r, input: s, cut, num: i + 1 }, `Section ${i + 1}`, 1600));
+	} else if (t.kind === 'walltile') {
+		const s = t.data as WallTileInput;
+		const w = wallTile(s);
+		out.push(await renderDrawing(WallTileElevation, { w, input: s }, 'Elevation', 1600));
+		for (const [i, c] of (s.cuts ?? []).entries()) out.push(await renderDrawing(WallTileSection, { w, input: s, x: c.x, num: i + 1 }, `Section ${i + 1}`, 1200));
 	} else {
 		const c = t.data as ConcreteData;
 		for (const p of c.pieces) out.push(await renderDrawing(ConcreteSketch, { piece: p }, '', 900));

@@ -7,7 +7,8 @@
 		{ href: '/takeoff/grout', icon: 'brick', title: 'Block fill grout', text: 'Grout for a CMU wall, solid or cells at a spacing, with corners and jambs. Block count too.' },
 		{ href: '/takeoff/framing', icon: 'studs', title: 'Stud wall', text: 'Studs, plates, kings, jacks, headers and cripples for wood walls with doors and windows.' },
 		{ href: '/takeoff/stairs', icon: 'stairs', title: 'Stairs', text: 'Risers, treads, landings and the stringer layout between two floors, with the floor opening headroom needs.' },
-		{ href: '/takeoff/flooring', icon: 'floor', title: 'Flooring', text: 'Tile and plank in any pattern, from hexagons to herringbone, laid out from your chalk lines: pieces, cuts, boxes, thinset and grout.' }
+		{ href: '/takeoff/flooring', icon: 'floor', title: 'Flooring', text: 'Tile and plank in any pattern, from hexagons to herringbone, laid out from your chalk lines: pieces, cuts, boxes, thinset and grout.' },
+		{ href: '/takeoff/wall-tile', icon: 'walltile', title: 'Wall tile', text: 'One wall at a time, from the floor or a tub: windows and niches cut out, laid from a level and a plumb line, with trim, backer board, thinset and grout.' }
 	];
 </script>
 
