@@ -6,7 +6,8 @@
 		{ href: '/takeoff/concrete', icon: 'slab', title: 'Concrete', text: 'Slabs, footings, walls, beams and columns, with waste and pump loss, rounded to what you order.' },
 		{ href: '/takeoff/grout', icon: 'brick', title: 'Block fill grout', text: 'Grout for a CMU wall, solid or cells at a spacing, with corners and jambs. Block count too.' },
 		{ href: '/takeoff/framing', icon: 'studs', title: 'Stud wall', text: 'Studs, plates, kings, jacks, headers and cripples for wood walls with doors and windows.' },
-		{ href: '/takeoff/stairs', icon: 'stairs', title: 'Stairs', text: 'Risers, treads, landings and the stringer layout between two floors, with the floor opening headroom needs.' }
+		{ href: '/takeoff/stairs', icon: 'stairs', title: 'Stairs', text: 'Risers, treads, landings and the stringer layout between two floors, with the floor opening headroom needs.' },
+		{ href: '/takeoff/flooring', icon: 'floor', title: 'Flooring', text: 'Tile and plank in any pattern, from hexagons to herringbone, laid out from your chalk lines: pieces, cuts, boxes, thinset and grout.' }
 	];
 </script>
 

@@ -35,7 +35,8 @@
 				{ href: '/takeoff/concrete', label: 'Concrete', icon: 'slab' },
 				{ href: '/takeoff/grout', label: 'Block grout', icon: 'brick' },
 				{ href: '/takeoff/framing', label: 'Stud wall', icon: 'studs' },
-				{ href: '/takeoff/stairs', label: 'Stairs', icon: 'stairs' }
+				{ href: '/takeoff/stairs', label: 'Stairs', icon: 'stairs' },
+				{ href: '/takeoff/flooring', label: 'Flooring', icon: 'floor' }
 			]
 		}
 	];

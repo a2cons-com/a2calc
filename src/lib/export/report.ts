@@ -11,6 +11,8 @@ import { frameWall, type WallInput } from '$lib/takeoff/framing';
 import { groutVolume, wallTotals } from '$lib/takeoff/grout';
 import { stairs, stairCuts, codeNotes, TURNS, type StairInput, type Turn } from '$lib/takeoff/stairs';
 
+import { flooring, floorSides, PATTERNS, type FloorInput } from '$lib/takeoff/flooring';
+
 const turnName = (t: Turn) => TURNS.find(([k]) => k === t)?.[1] ?? '';
 
 export interface Table {
@@ -208,6 +210,45 @@ function stairsReport(s: StairInput, den: number): Omit<Report, 'kind' | 'kindNa
 	};
 }
 
+function floorReport(s: FloorInput, den: number): Omit<Report, 'kind' | 'kindName' | 'name'> {
+	const ft = (v: number) => formatFtIn(v, den);
+	const r = flooring(s);
+	const sides = floorSides(s);
+	const pat = PATTERNS.find((p) => p.id === s.pattern)?.name ?? '';
+	const sq = (in2: number) => formatNumber(in2 / 144, 1);
+	const rows: string[][] = [];
+	for (const t of r.types) {
+		const size = s.pattern === 'hex' ? `${ft(t.w)} across the flats` : `${ft(t.w)} × ${ft(t.l)}`;
+		rows.push([t.name, `${size}${r.approx ? '' : ` · ${t.full} full, ${t.cut} cut`}, +${s.extraPct}%`, String(t.order)]);
+		if (t.boxes && !s.sheet) rows.push([`${t.name}, boxes`, `${formatNumber(t.boxSqft, 2)} sq ft each`, String(t.boxes)]);
+	}
+	if (s.sheet) rows.push(['Mosaic sheets', `${formatNumber(s.sheetSqft, 2)} sq ft each, +${s.extraPct}%`, String(r.sheets)]);
+	if (r.thinset) rows.push(['Thinset, 50 lb', `${r.thinset.trowel} trowel`, String(r.thinset.bags)]);
+	if (r.grout) rows.push(['Grout, 25 lb', `${r.grout.sanded ? 'Sanded' : 'Unsanded'}, ${formatNumber(r.grout.lbs, 1)} lb`, String(r.grout.bags)]);
+	if (r.rolls) rows.push(['Underlayment', `${formatNumber(s.rollSqft, 0)} sq ft each`, String(r.rolls)]);
+	if (s.base) rows.push(['Base', `${formatNumber(r.baseLf, 1)} lf less doorways, 8′ pieces +10%`, String(Math.ceil((r.baseLf * 1.1) / 8 - 1e-9))]);
+	if (r.doors) rows.push(['Transitions', 'One per doorway', String(r.doors)]);
+	const lineText = (i: 0 | 1) => `${ft(r.lines[i].dist)} off wall ${r.lines[i].side + 1}`;
+	return {
+		headline: { label: 'Floor', value: sq(r.area), unit: 'sq ft' },
+		summary: [
+			['Room', s.rect ? `${ft(sides[0].length)} × ${ft(sides[1].length)}` : `${sides.length} walls, ${ft(r.perimeter)} around`],
+			['Laid', `${sq(r.layArea)} sq ft, ${ft(s.gap)} gap at the walls`],
+			['Pattern', `${pat}${s.turned ? ` (${PATTERNS.find((p) => p.id === s.pattern)?.turn.toLowerCase()})` : ''}${s.material === 'plank' ? ', plank' : `, ${ft(s.joint)} joints`}`],
+			['Rows along', `Wall ${s.along + 1}`],
+			['Line A', `Parallel to wall ${s.along + 1}, ${lineText(0)}`],
+			['Line B', `Square to it, ${lineText(1)}`],
+			...(r.smallest !== null ? [['Smallest cut', ft(r.smallest)] as [string, string]] : [])
+		],
+		tables: [
+			{ title: 'To buy', cols: ['Item', 'Detail', 'Qty'], numFrom: 2, rows },
+			{ title: 'Cuts at the walls', cols: ['Wall', 'Length', 'Smallest cut'], numFrom: 1, rows: r.wallCuts.map((c, i) => [`Wall ${i + 1}`, ft(sides[i]?.length ?? 0), c === null ? 'full pieces' : ft(c)]) }
+		],
+		warnings: r.warnings,
+		notes: ['Pieces are counted from the layout, every cut piece taking a whole one (planks in rows by area). Thinset at typical trowel coverage, grout from the joint volume plus 10%. Check coverage on the bags and boxes you buy.']
+	};
+}
+
 export function takeoffReport(t: Takeoff, den: number): Report {
 	const body =
 		t.kind === 'framing'
@@ -216,7 +257,9 @@ export function takeoffReport(t: Takeoff, den: number): Report {
 				? blockGrout(t.data as GroutData, den)
 				: t.kind === 'stairs'
 					? stairsReport(t.data as StairInput, den)
-					: concreteReport(t.data as ConcreteData, den);
+					: t.kind === 'flooring'
+						? floorReport(t.data as FloorInput, den)
+						: concreteReport(t.data as ConcreteData, den);
 	return { kind: t.kind, kindName: KIND_NAME[t.kind], name: t.name, ...body };
 }
 
@@ -224,7 +267,7 @@ export function takeoffReport(t: Takeoff, den: number): Report {
 export function takeoffLine(t: Takeoff, den: number): string {
 	try {
 		const h = takeoffReport(t, den).headline;
-		return t.kind === 'framing' ? `${h.value} studs` : t.kind === 'stairs' ? `${h.value} risers ${h.unit}` : `${h.value} ${h.unit}`;
+		return t.kind === 'framing' ? `${h.value} studs` : t.kind === 'stairs' ? `${h.value} risers ${h.unit}` : t.kind === 'flooring' ? `${h.value} sq ft floor` : `${h.value} ${h.unit}`;
 	} catch {
 		return '';
 	}

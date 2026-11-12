@@ -6,7 +6,7 @@
 	import Icon from './Icon.svelte';
 	import Sheet from './Sheet.svelte';
 	import ExportSheet from './ExportSheet.svelte';
-	import { concrete, grout, stairs, wall } from '$lib/stores/app.svelte';
+	import { concrete, floor, grout, stairs, wall } from '$lib/stores/app.svelte';
 	import {
 		closeTakeoff,
 		createProject,
@@ -48,7 +48,7 @@
 	}
 
 	// Exporting a takeoff that isn't in a project: a one-off project of it.
-	const STORE = { framing: wall, grout, concrete, stairs };
+	const STORE = { framing: wall, grout, concrete, stairs, flooring: floor };
 	const scratch = $derived<Project>({
 		id: 0,
 		name: KIND_NAME[kind],

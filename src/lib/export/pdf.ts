@@ -19,6 +19,8 @@ import StairSection from '$lib/components/StairSection.svelte';
 import StairPlan from '$lib/components/StairPlan.svelte';
 import StairStringer from '$lib/components/StairStringer.svelte';
 import { stairRuns, stairs, type StairInput } from '$lib/takeoff/stairs';
+import FloorLayout from '$lib/components/FloorLayout.svelte';
+import { flooring, type FloorInput } from '$lib/takeoff/flooring';
 
 // Letter, in points.
 const W = 612;
@@ -140,6 +142,9 @@ async function drawings(t: Takeoff): Promise<Drawing[]> {
 			if (r.flights[i].risers < 2) continue;
 			out.push(await renderDrawing(StairStringer, { input: s, r, flight: i }, r.flights.length > 1 ? `Stringer, flight ${i + 1}` : 'Stringer', 1400));
 		}
+	} else if (t.kind === 'flooring') {
+		const s = t.data as FloorInput;
+		out.push(await renderDrawing(FloorLayout, { r: flooring(s), input: s }, 'Layout', 1600));
 	} else {
 		const c = t.data as ConcreteData;
 		for (const p of c.pieces) out.push(await renderDrawing(ConcreteSketch, { piece: p }, '', 900));
