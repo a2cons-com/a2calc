@@ -472,3 +472,16 @@ What to check
 - Drag and turn the section marks with a finger; pinch and swipe still work around them.
 - The sections read right: walls, base, gap, layers, first piece sizes, the tub and the trim.
 - The floor 3D view turns and zooms smoothly.
+
+## 0.2.17 (159), 2026-11-20
+
+The drawing at the top of a takeoff: Small no longer floats, Float is its own choice, and Pin is up to you.
+
+What changed
+
+- Small and Large sit full width at the top again. Pin keeps them under the page head while you scroll; turn it off and they scroll away with the page. Each size remembers its own Pin (Small starts pinned, Large doesn't).
+- Float is a separate choice: the drawing in a corner over the inputs, to drag and size as before, with Small, Large and Hide on its bar.
+
+What to check
+
+- Switch between Hide, Small, Large and Float in a few tools, and turn Pin on and off for Small and Large; scroll and make sure each stays or goes as set, and is remembered after leaving the tool.
