@@ -90,8 +90,8 @@ else {
 	});
 	step('age rating: no objectionable content (4+)');
 	const age = (await api(`/appInfos/${info.id}/ageRatingDeclaration`)).data;
-	const booleans = ['advertising', 'ageAssurance', 'gambling', 'healthOrWellnessTopics', 'lootBox', 'messagingAndChat',
-		'parentalControls', 'socialMedia', 'socialMediaAgeRestricted', 'unrestrictedWebAccess', 'userGeneratedContent'];
+	const booleans = ['advertising', 'ageAssurance', 'datingAndRelationships', 'gambling', 'healthOrWellnessTopics', 'lootBox', 'messagingAndChat',
+		'parentalControls', 'sharedLocation', 'socialMedia', 'socialMediaAgeRestricted', 'unrestrictedWebAccess', 'userGeneratedContent'];
 	const ageAttributes = {};
 	for (const [key, value] of Object.entries(age.attributes)) {
 		if (/Override|kidsAgeBand|InfoUrl|gracRating/.test(key)) continue;
