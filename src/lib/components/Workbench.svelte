@@ -1,26 +1,32 @@
 <script lang="ts">
 	// A takeoff laid out around its drawing, so the drawing stays in sight
-	// while the inputs change. On a phone: Small floats the drawing in a
-	// corner over the inputs (drag its bar to another corner, drag its
-	// corner handle to size it), Large sticks it full width under the page
-	// head, or hide it. On a wide window it is a column of its own.
+	// while the inputs change. On a phone: Small or Large full width at the
+	// top, pinned under the page head or scrolling away with the page (Pin,
+	// kept per size); Float puts it in a corner over the inputs (drag its
+	// bar to another corner, drag its corner handle to size it); or hide it.
+	// On a wide window it is a column of its own.
 	import { onMount, type Snippet } from 'svelte';
 	import { browser } from '$app/environment';
 
 	let { preview, children, id }: { preview: Snippet; children: Snippet; /** Remembers the size per tool. */ id: string } = $props();
 
-	type Size = 'small' | 'large' | 'hidden';
+	type Size = 'small' | 'large' | 'float' | 'hidden';
 	type Corner = 'tl' | 'tr' | 'bl' | 'br';
 	const key = () => `a2calc:preview:${id}`;
+	const pinKey = () => `a2calc:preview:${id}:pin`;
 	const FLOAT_KEY = 'a2calc:preview:float';
 	let size = $state<Size>('small');
+	/** Pinned under the page head, per size. */
+	let pin = $state({ small: true, large: false });
 	/** The floating view: where it sits and how big it is (kept for all tools). */
 	let corner = $state<Corner>('tl');
 	let fw = $state(0);
 	let fh = $state(0);
 	try {
 		const v = browser ? localStorage.getItem(key()) : null;
-		if (v === 'small' || v === 'large' || v === 'hidden') size = v;
+		if (v === 'small' || v === 'large' || v === 'float' || v === 'hidden') size = v;
+		const p = browser ? JSON.parse(localStorage.getItem(pinKey()) ?? 'null') : null;
+		if (p && typeof p.small === 'boolean' && typeof p.large === 'boolean') pin = { small: p.small, large: p.large };
 		const f = browser ? JSON.parse(localStorage.getItem(FLOAT_KEY) ?? 'null') : null;
 		if (f && ['tl', 'tr', 'bl', 'br'].includes(f.corner)) corner = f.corner;
 		if (f && Number.isFinite(f.w) && Number.isFinite(f.h)) {
@@ -38,6 +44,16 @@
 			/* not kept */
 		}
 	}
+	function togglePin() {
+		if (size !== 'small' && size !== 'large') return;
+		pin = { ...pin, [size]: !pin[size] };
+		try {
+			localStorage.setItem(pinKey(), JSON.stringify(pin));
+		} catch {
+			/* not kept */
+		}
+	}
+	const pinned = $derived((size === 'small' || size === 'large') && pin[size]);
 	function keepFloat() {
 		try {
 			localStorage.setItem(FLOAT_KEY, JSON.stringify({ corner, w: fw, h: fh }));
@@ -75,7 +91,7 @@
 			window.removeEventListener('resize', fit);
 		};
 	});
-	const floating = $derived(narrow && size === 'small');
+	const floating = $derived(narrow && size === 'float');
 
 	// Moving: follow the finger, then settle into the nearest corner.
 	let drag = $state<{ x: number; y: number; dx: number; dy: number } | null>(null);
@@ -119,7 +135,7 @@
 </script>
 
 <div class="bench">
-	<div class="pv {size}" class:floating style="top:{top}px; --top:{top}px">
+	<div class="pv {size}" class:floating class:loose={!pinned} style="top:{top}px; --top:{top}px">
 		<div
 			class="card body {corner}"
 			class:dragging={!!drag}
@@ -129,7 +145,8 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="grip" onpointerdown={moveStart} onpointermove={moveOn} onpointerup={moveEnd} onpointercancel={moveEnd}>
 					<span class="dots" aria-hidden="true"></span>
-					<button onclick={() => set('large')} aria-label="Make the drawing large">Large</button>
+					<button onclick={() => set('small')} aria-label="Put the drawing back at the top, small">Small</button>
+					<button onclick={() => set('large')} aria-label="Put the drawing back at the top, large">Large</button>
 					<button onclick={() => set('hidden')} aria-label="Hide the drawing">Hide</button>
 				</div>
 			{/if}
@@ -144,6 +161,14 @@
 				<button class:on={size === 'hidden'} onclick={() => set('hidden')}>Hide</button>
 				<button class:on={size === 'small'} onclick={() => set('small')}>Small</button>
 				<button class:on={size === 'large'} onclick={() => set('large')}>Large</button>
+				<button onclick={() => set('float')}>Float</button>
+				{#if size === 'small' || size === 'large'}
+					<span class="sep" aria-hidden="true"></span>
+					<button class="pin" class:on={pinned} aria-pressed={pinned} onclick={togglePin} title={pinned ? 'Pinned at the top: tap to let it scroll away' : 'Scrolls away: tap to pin it at the top'}>
+						<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 1.5h5l-.8 4.2 2.8 2.8H8.6V14l-.6 1-.6-1V8.5H4.5l2.8-2.8z" /></svg>
+						Pin
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -175,9 +200,19 @@
 	.hidden .body {
 		display: none;
 	}
-	.large,
-	.small {
+	.large {
 		--drawing-h: 52vh;
+	}
+	.small {
+		--drawing-h: 24vh;
+	}
+	/* Small: just the drawing, no captions under it. */
+	.small .body :global(.hint) {
+		display: none;
+	}
+	/* Not pinned: scrolls away with the page. */
+	.pv.loose {
+		position: relative;
 	}
 
 	/* Small on a phone: a floating window in a corner, over the inputs. */
@@ -310,6 +345,27 @@
 		background: none;
 		border: none;
 	}
+	.sizes .sep {
+		width: 1px;
+		margin: 3px 4px;
+		background: var(--border);
+	}
+	.sizes .pin {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+	.pin svg {
+		width: 11px;
+		height: 11px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.4;
+		stroke-linejoin: round;
+	}
+	.pin.on svg {
+		fill: currentColor;
+	}
 	.sizes button.on {
 		color: var(--primary-text);
 		background: var(--surface-2);
@@ -327,13 +383,18 @@
 			gap: 20px;
 			align-items: start;
 		}
-		.pv {
+		.pv,
+		.pv.loose {
+			position: sticky;
 			margin: 0;
 			padding: 0;
 			--drawing-h: calc(100vh - var(--top) - 120px);
 		}
 		.pv.hidden .body {
 			display: flex;
+		}
+		.pv .body :global(.hint) {
+			display: block;
 		}
 		.sizes {
 			display: none;
